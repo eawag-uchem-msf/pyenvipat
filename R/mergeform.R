@@ -1,3 +1,26 @@
+#' Combine chemical formulas
+#' 
+#' Combine chemical formulas
+#' 
+#' @param formula1 Vector of first chemical formula(s), character string(s)
+#' @param formula2 Second chemical formula, single character string
+#' 
+#' @details
+#' Useful for adduct calculations, check adducts.
+#' Chemical formulas must conform to what is described in check_chemform.
+#' 
+#' @return Merged chemical formula(s), character string
+#' 
+#' @author Martin Loos
+#' 
+#' @seealso adducts
+#' 
+#' @examples
+#' formula1 <- c("C10[13]C2H10Cl10")
+#' formula2 <- c("C2H5Na1")
+#' mergeform(formula1, formula2)
+#' 
+#' @export
 mergeform<-
 function(formula1,formula2){
 

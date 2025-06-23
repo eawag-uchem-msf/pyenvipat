@@ -1,3 +1,40 @@
+#' Check for overlapping molecules.
+#' 
+#' Check for molecules overlapping in m/z, based on isotope fine structures from isopattern
+#' or on centroids/intensoids from envelope.
+#' 
+#' @param pattern Output from isopattern or from envelope.
+#' @param dmz m/z window. In combination with ppm=TRUE set as ppm or with ppm=FALSE set as absolute m/z.
+#' @param ppm Should m/z window be set in ppm (TRUE) or absolute m/z (FALSE)?
+#' 
+#' @details
+#' Overlaps in m/z among molecules are screened for within the m/z tolerance defined by the arguments dmz and ppm.
+#' 
+#' @return Dataframe with 4 columns, with number of rows equal to the length of argument pattern
+#' \item{compound}{Chemical formula of the compound}
+#' \item{warning}{Overlap detected?}
+#' \item{to?}{If overlap: with wich other compound(s)? Refers to row number, recycled for peak_number.}
+#' \item{peak_number}{If overlap: with which peak(s) of the other compound(s)? Refers to peak number.}
+#' 
+#' @author Martin Loos, Christian Gerber
+#' 
+#' @seealso isopattern, envelope
+#' 
+#' @examples
+#' data(isotopes)
+#' data(chemforms)
+#' pattern <- isopattern(
+#'   isotopes,
+#'   chemforms,
+#'   threshold=0.1,
+#'   plotit=TRUE,
+#'   charge=FALSE,
+#'   emass=0.00054858,
+#'   algo=1
+#' )
+#' check_several(pattern, dmz=0.001, ppm=FALSE)
+#' 
+#' @export
 check_several <-
 function(pattern,dmz,ppm=TRUE){
 

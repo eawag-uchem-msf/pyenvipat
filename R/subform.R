@@ -1,3 +1,27 @@
+#' Subtract one chemical formula from another
+#' 
+#' Subtract one chemical formula from another
+#' 
+#' @param formula1 Chemical formula to subtract from
+#' @param formula2 Chemical formula to subtract
+#' 
+#' @details
+#' Useful for adduct calculations, check adducts.
+#' Chemical formulas must conform to what is described in check_chemform.
+#' Prior check if formula2 is contained in formula1 at all? See check_ded.
+#' 
+#' @return A chemical formula with formula2 subtracted from formula1
+#' 
+#' @author Martin Loos
+#' 
+#' @seealso adducts, check_ded
+#' 
+#' @examples
+#' formula1 <- c("C10[13]C2H10Cl10")
+#' formula2 <- c("C2H5[13]C1")
+#' subform(formula1, formula2)
+#' 
+#' @export
 subform<-
 function(formula1,formula2){
 

@@ -1,3 +1,26 @@
+#' Check if a chemical formula is subset in another one
+#' 
+#' Check if a chemical formula is contained in another chemical formula
+#' 
+#' @param formulas Vector with the containing chemical formula(s)
+#' @param deduct Chemical formula to be contained ("deduct")
+#' 
+#' @return Returns a vector with length of input formulas, with TRUE if deduct is not contained and FALSE otherwise.
+#' 
+#' @note Might be used used prior to subtracting a "deduct" chemical formula from that of a molecule 
+#' when including adducts in the calculation of isotopic patterns. Chemical formulas must conform 
+#' to what is described in check_chemform.
+#' 
+#' @author Martin Loos
+#' 
+#' @seealso adducts
+#' 
+#' @examples
+#' formulas<-c("C8H4Cl2","C10H16O2","C3H10")
+#' deduct<-c("C4H10")
+#' check_ded(formulas, deduct)
+#' 
+#' @export
 check_ded <-
 function (formulas, deduct) 
 {

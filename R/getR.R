@@ -1,3 +1,38 @@
+#' Interpolation of MS measurement resolution
+#' 
+#' Given a set of MS measurement resolutions (R) as a function of measurement mass (m/z), getR interpolates R for any given molecular mass(es)
+#' calculated by check_chemform using smooth.spline.
+#' 
+#' @param checked Dataframe produced by check_chemform.
+#' @param resmass Dataframe with two columns, resolution and mass; such as the list entries in resolution_list.
+#' @param nknots Integer number of knots to use for the smoothing spline. Default = 13. See also smooth.spline.
+#' @param spar Smoothing parameter, (0,1]. See also smooth.spline.
+#' @param plotit Plot results, TRUE/FALSE?
+#' 
+#' @note
+#' check_chemform gives molecular masses (m/z) for z=+/-1 only. 
+#' If z>1 or z<-1 is required, molecular mass entries in argument checked have to be divided accordingly to be consistent.
+#' 
+#' @return Vector with resolutions.
+#' 
+#' @author Martin Loos, Christian Gerber
+#' 
+#' @seealso smooth.spline, check_chemform, resolution_list
+#' 
+#' @examples
+#' data(resolution_list)
+#' resmass <- resolution_list[[4]]
+#' data(isotopes)
+#' data(chemforms)
+#' checked <- check_chemform(isotopes, chemforms)
+#' resolution <- getR(checked, resmass, nknots=13, spar=0.1, plotit=TRUE)
+#' 
+#' # same for z=-2:
+#' checked <- check_chemform(isotopes, chemforms)
+#' checked[,3] <- (checked[,3]/abs(-2))
+#' resolution <- getR(checked, resmass, nknots=13, spar=0.1, plotit=TRUE)
+#' 
+#' @export
 getR <-
 function(checked, resmass, nknots = 13, spar = 0.1, plotit = TRUE){
 

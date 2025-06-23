@@ -1,3 +1,25 @@
+#' Multiply a chemical formula
+#' 
+#' Multiply all atom numbers in a chemical formula by a factor
+#' 
+#' @param formula_in Chemical formula to be multiplied, vector of character strings
+#' @param fact Factor to multiply with
+#' 
+#' @details
+#' Useful for adduct calculations, check adducts.
+#' Chemical formulas must conform to what is described in check_chemform.
+#' 
+#' @return Multiplied chemical formula, character string
+#' 
+#' @author Martin Loos
+#' 
+#' @seealso adducts
+#' 
+#' @examples
+#' formula_in <- "C10[13]C2H10Cl10"
+#' multiform(formula_in, 3)
+#' 
+#' @export
 multiform <-
 function(formula_in, fact){
 
