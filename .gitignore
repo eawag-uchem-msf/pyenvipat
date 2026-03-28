@@ -1,0 +1,17 @@
+# R package build artifacts
+*.tar.gz
+*.Rcheck/
+
+# Compiled C objects and shared libraries
+src/*.o
+src/*.so
+src/*.dll
+
+# R session artifacts
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# devcontainer build cache
+.devcontainer
