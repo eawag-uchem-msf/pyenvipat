@@ -78,3 +78,5 @@ All exported functions use roxygen2 (`@param`, `@return`, `@examples`, etc.). Ed
 ## Development Container
 
 A `.devcontainer/` setup is included (rocker/verse base, RStudio Server on port 8787). The container includes devtools, roxygen2, testthat, and a C/C++ compiler. VS Code extensions for R and C++ are preconfigured.
+
+**Always build, install, and run tests inside the dev container, not on the host.** The host's glibc version may not match what the container's toolchain produces, causing `.so` load failures (`GLIBC_x.xx not found`) if compiled objects cross between the two. If the container isn't already running, start it (e.g. `docker ps` to check, or use the VS Code "Reopen in Container" flow) before running `R CMD INSTALL`, `R CMD build`, `R CMD check`, or any test suite. Use `docker exec <container> bash -lc '...'` to run commands inside it from the CLI. Run `R CMD INSTALL --install-tests .` so `testthat.R` can find `tests/testthat` in the installed package, and invoke it as `cd tests && Rscript testthat.R` (mirrors how `R CMD check` sets the working directory).
