@@ -17,3 +17,4 @@ BugReports: https://github.com/blosloos/enviPat/issues
 URL: https://www.envipat.eawag.ch/, https://pubs.acs.org/doi/abs/10.1021/acs.analchem.5b00941
 Encoding: UTF-8
 RoxygenNote: 7.3.2
+Suggests: testthat
