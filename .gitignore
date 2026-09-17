@@ -15,3 +15,5 @@ src/*.dll
 
 # devcontainer build cache
 .devcontainer
+
+.claude
