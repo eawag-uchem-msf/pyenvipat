@@ -12,7 +12,7 @@ A list where each element is a data frame containing two columns:
 }
 }
 \usage{
-resolution_list
+data(resolution_list)
 }
 \description{
 List of different resolutions R=f(m/z) for various (high-resolution) mass spectrometers.

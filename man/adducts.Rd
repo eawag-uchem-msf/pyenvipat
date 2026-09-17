@@ -22,7 +22,7 @@ A data frame with 47 observations on the following 6 variables:
 \url{https://fiehnlab.ucdavis.edu/staff/kind/Metabolomics/MS-Adduct-Calculator/}
 }
 \usage{
-adducts
+data(adducts)
 }
 \description{
 List of common adducts observed for ESI-MS measurements in soft positive and negative ionization modes.

@@ -11,3 +11,9 @@ export(mergeform)
 export(multiform)
 export(subform)
 export(vdetect)
+importFrom(graphics,points)
+importFrom(stats,
+  predict,
+  smooth.spline
+)
+useDynLib(enviPat, .registration=TRUE)
