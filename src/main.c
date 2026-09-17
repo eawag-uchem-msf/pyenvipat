@@ -130,7 +130,10 @@ int alloc_peaks(int p_l, size_t iso_amount, double **m_, double **a_, int **cc_)
                 return R_NilValue;
             }
         }
-        SETLENGTH(trace_R, n + 1);
+        /* R >= 4.5 removed the non-API in-place SETLENGTH; truncate the
+           over-allocated vector via the supported Rf_lengthgets (returns a
+           copy of the first n+1 elements). */
+        trace_R = Rf_lengthgets(trace_R, n + 1);
         UNPROTECT(4);
         return trace_R;
     }
@@ -302,10 +305,11 @@ int alloc_peaks(int p_l, size_t iso_amount, double **m_, double **a_, int **cc_)
                 UNPROTECT(1);
             }
 
-            SETLENGTH(mass_R, r);
-            SETLENGTH(a_R, r);
-            SET_VECTOR_ELT(iso_pattern, 0, mass_R);
-            SET_VECTOR_ELT(iso_pattern, 1, a_R);
+            /* R >= 4.5 removed in-place SETLENGTH; Rf_lengthgets returns a
+               truncated copy, stored immediately so the unprotected copy is
+               not lost to GC triggered by the next allocation. */
+            SET_VECTOR_ELT(iso_pattern, 0, Rf_lengthgets(mass_R, r));
+            SET_VECTOR_ELT(iso_pattern, 1, Rf_lengthgets(a_R, r));
 
             SEXP list_names;
             int n_c = 2;
@@ -1724,10 +1728,11 @@ SEXP iso_pattern_2(SEXP sum
             UNPROTECT(1);
         }
 
-        SETLENGTH(mass_R, r);
-        SETLENGTH(a_R, r);
-        SET_VECTOR_ELT(iso_pattern, 0, mass_R);
-        SET_VECTOR_ELT(iso_pattern, 1, a_R);
+        /* R >= 4.5 removed in-place SETLENGTH; Rf_lengthgets returns a
+           truncated copy, stored immediately so the unprotected copy is
+           not lost to GC triggered by the next allocation. */
+        SET_VECTOR_ELT(iso_pattern, 0, Rf_lengthgets(mass_R, r));
+        SET_VECTOR_ELT(iso_pattern, 1, Rf_lengthgets(a_R, r));
 
         SEXP list_names;
         int n_c = 2;
