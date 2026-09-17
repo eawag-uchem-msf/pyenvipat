@@ -61,6 +61,7 @@
 #'   plotit=TRUE
 #' )
 #' 
+#' @importFrom graphics points
 #' @export
 vdetect <-
 function(

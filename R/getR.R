@@ -32,6 +32,8 @@
 #' checked[,3] <- (checked[,3]/abs(-2))
 #' resolution <- getR(checked, resmass, nknots=13, spar=0.1, plotit=TRUE)
 #' 
+#' @importFrom stats smooth.spline predict
+#' @importFrom graphics points
 #' @export
 getR <-
 function(checked, resmass, nknots = 13, spar = 0.1, plotit = TRUE){
