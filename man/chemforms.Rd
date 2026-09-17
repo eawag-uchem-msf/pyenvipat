@@ -8,7 +8,7 @@
 A character vector of chemical formulas
 }
 \usage{
-chemforms
+data(chemforms)
 }
 \description{
 A dataset containing example chemical formulas for demonstration purposes.

@@ -18,7 +18,7 @@ A data frame containing isotope information with the following variables:
 \url{https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl}
 }
 \usage{
-isotopes
+data(isotopes)
 }
 \description{
 A dataset containing stable isotope information for various elements, including their
