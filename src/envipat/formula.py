@@ -51,8 +51,12 @@ parses each formula once with a small recursive-descent tokenizer
   formula like ``"(D2)3"`` normalizes to ``"[2]H6"``, not ``"D6"`` -- an
   inconsistency in the R original that is reproduced here too (see the
   ``_in_group`` flag inside ``_parse_nested`` below).
-- merging repeated elements in a formula sums their counts, keeping the
-  position of first occurrence (``"C2C3"`` -> ``"C5"``).
+- ``check_chemform`` merges repeated elements in a formula, summing their
+  counts and keeping the position of first occurrence (``"C2C3"`` ->
+  ``"C5"``). ``mergeform`` does *not* do this for you: a repeated element
+  within a single input formula (already-normalized formulas are not
+  supposed to have one) raises ``ValueError`` instead of being silently
+  merged -- see :func:`mergeform`.
 
 Reference mass lookup
 ----------------------
@@ -154,6 +158,32 @@ def _merge_counts(tokens: list[tuple[str, int]]) -> dict[str, int]:
     for symbol, count in tokens:
         merged[symbol] = merged.get(symbol, 0) + count
     return merged
+
+
+def _reject_repeated_symbol(tokens: list[tuple[str, int]], formula: str) -> None:
+    """Raise if ``formula`` (already tokenized into ``tokens``) contains
+    the same element symbol more than once.
+
+    Used by :func:`mergeform` on each of its two input formulas *before*
+    combining them: a formula's own repeated, un-merged element (e.g.
+    ``data/adducts.rda``'s ``"M+H+NH4"`` -> ``"H1N1H4"``) is what trips
+    R's ``mergeform`` vector-recycling bug (see module docstring / MR
+    description). An earlier version of this port silently merged such
+    duplicates before combining, "fixing" the corruption rather than
+    surfacing it; per reviewer feedback that is a real error the caller
+    should see, not something mergeform should paper over, so this now
+    fails loud instead.
+    """
+    seen: set[str] = set()
+    for symbol, _ in tokens:
+        if symbol in seen:
+            raise _FormulaSyntaxError(
+                f"formula {formula!r} contains element {symbol!r} more "
+                "than once as separate tokens (e.g. 'H1...H4'); mergeform "
+                "does not merge a formula's own repeated tokens for you -- "
+                "normalize with check_chemform first"
+            )
+        seen.add(symbol)
 
 
 # ---------------------------------------------------------------------------
@@ -433,6 +463,14 @@ def mergeform(formula1, formula2) -> list:
     Port of R's ``mergeform`` (``R/mergeform.R``). Both arguments must
     already be fully counted, unbracketed formulas.
 
+    Unlike R's original -- which, given a formula with an internally
+    repeated, un-merged element (e.g. ``data/adducts.rda``'s
+    ``"M+H+NH4"`` -> ``"H1N1H4"``), silently corrupts every element
+    processed afterwards via vector recycling (see MR !7 for the full
+    trace) -- this raises ``ValueError`` promptly instead of "fixing" the
+    corruption by merging the duplicate for the caller. Normalize with
+    :func:`check_chemform` first if a formula may contain repeats.
+
     Parameters
     ----------
     formula1
@@ -444,17 +482,28 @@ def mergeform(formula1, formula2) -> list:
     -------
     list[str]
         One merged formula string per entry in ``formula1``.
+
+    Raises
+    ------
+    ValueError
+        If a formula omits an explicit count after some element, or if
+        either ``formula1`` or ``formula2`` contains the same element
+        symbol more than once as separate tokens.
     """
     if isinstance(formula1, str):
         formula1 = [formula1]
 
     formula2_str = _D_RE.sub("[2]H", str(formula2))
-    counts2 = _merge_counts(_parse_flat(formula2_str))
+    tokens2 = _parse_flat(formula2_str)
+    _reject_repeated_symbol(tokens2, formula2_str)
+    counts2 = _merge_counts(tokens2)
 
     out: list[str] = []
     for f1 in formula1:
         f1_str = _D_RE.sub("[2]H", str(f1))
-        counts1 = _merge_counts(_parse_flat(f1_str))
+        tokens1 = _parse_flat(f1_str)
+        _reject_repeated_symbol(tokens1, f1_str)
+        counts1 = _merge_counts(tokens1)
 
         merged: dict[str, int] = dict(counts1)
         for symbol, count in counts2.items():

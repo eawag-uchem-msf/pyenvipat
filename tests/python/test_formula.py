@@ -34,8 +34,11 @@ being ported) were found to be internally inconsistent -- see the
   duplicated, un-merged "H" token; R's mergeform doesn't deduplicate a
   formula's own tokens before merging, which trips a vector-recycling bug
   that silently corrupts *all* elements processed after the duplicate.
-  This port merges duplicate tokens within each input formula first,
-  giving a correct result instead of reproducing the corruption. As
+  An earlier version of this port merged such duplicates before
+  combining, giving a chemically correct result instead of reproducing
+  the corruption -- but per reviewer feedback on MR !7, quietly "fixing"
+  malformed input like this is itself a footgun, so mergeform now raises
+  ValueError promptly instead, same as the missing-count case above. As
   above, the exported adducts.csv has since been patched to "H5N1"; the
   test below exercises the original malformed string directly to keep
   this defensive behaviour under regression.
@@ -279,7 +282,7 @@ def test_flat_helpers_reject_missing_explicit_count(malformed):
         mergeform("C1H4", malformed)
 
 
-def test_mergeform_deduplicates_repeated_element_in_one_formula():
+def test_mergeform_rejects_repeated_element_in_one_formula():
     # R's own data/adducts.rda "M+H+NH4" entry has Formula_add "H1N1H4"
     # (H appears twice, unmerged; left unfixed in the .rda, see MR !7).
     # R's mergeform doesn't merge a formula's own repeated tokens before
@@ -287,9 +290,14 @@ def test_mergeform_deduplicates_repeated_element_in_one_formula():
     # length>1 vector for the repeated element, desynchronizing every
     # element processed afterwards. Verified directly against R:
     # mergeform("C1H4", "H1N1H4") returns "C1H5N8" in R -- chemically
-    # nonsensical (8 nitrogens from a single N1 token). This port sums
-    # repeated tokens within each formula first, giving the chemically
-    # correct result instead. The exported adducts.csv Python reads has
-    # been patched to "H5N1" so this no longer fires off real adducts
-    # data; kept here as general defensive-parsing regression coverage.
-    assert mergeform("C1H4", "H1N1H4") == ["C1H9N1"]
+    # nonsensical (8 nitrogens from a single N1 token). This port fails
+    # loud instead of silently merging the duplicate to "fix" it -- same
+    # treatment as the missing-count case above. The exported
+    # adducts.csv Python reads has been patched to "H5N1" so this no
+    # longer fires off real adducts data; kept here as general
+    # defensive-parsing regression coverage.
+    with pytest.raises(ValueError):
+        mergeform("C1H4", "H1N1H4")
+
+    with pytest.raises(ValueError):
+        mergeform("H1N1H4", "C1H4")
