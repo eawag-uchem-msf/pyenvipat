@@ -13,6 +13,15 @@ src/*.dll
 .Rproj.user/
 *.Rproj
 
+# Python build artifacts (envipat._core.enviPat_py C extension)
+__pycache__/
+*.pyc
+*.so
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
 # devcontainer build cache
 .devcontainer
 
