@@ -9,8 +9,12 @@ There is no drop-in equivalent for this exact model in the Python scientific
 stack: :func:`scipy.interpolate.make_smoothing_spline` selects its own
 smoothing parameter via GCV and does not accept R's ``spar`` at all, and
 :class:`scipy.interpolate.UnivariateSpline` parametrizes smoothing via a
-target sum-of-squared-residuals rather than R's ``spar``/``lambda``. This
-module is therefore a from-scratch reimplementation of the relevant slice of
+target sum-of-squared-residuals rather than R's ``spar``/``lambda``. This was
+measured, not assumed: even with its smoothing parameter hand-tuned per
+curve against R's own known answer, ``make_smoothing_spline`` still misses R
+by up to 13% relative error (target: ``rtol < 1e-6``) -- see MR !6's
+description for the full comparison. This module is therefore a
+from-scratch reimplementation of the relevant slice of
 R's ``stats::smooth.spline`` (the ``cv=TRUE`` argument only affects a
 diagnostic score that ``getR`` never reads -- since ``spar`` is supplied,
 R's own ``smooth.spline`` skips any GCV/CV search entirely and fits directly
