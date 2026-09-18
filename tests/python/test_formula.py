@@ -21,15 +21,24 @@ being ported) were found to be internally inconsistent -- see the
   four rows hold the *same* (wrong, for 3 of the 4 factors) result.
   Verified directly against R with correct scalar calls instead.
 - R's check_ded/mergeform/subform/multiform tokenizers require every
-  element to be followed by an explicit count; on real adducts.csv data
-  (Formula_add "F", "H2CO3") that's missing, and R either loops forever
-  or silently mis-tokenizes. This port raises promptly instead.
-- adducts.csv's "M+H+NH4" entry (Formula_add "H1N1H4") has a duplicated,
-  un-merged "H" token; R's mergeform doesn't deduplicate a formula's own
-  tokens before merging, which trips a vector-recycling bug that silently
-  corrupts *all* elements processed after the duplicate. This port merges
-  duplicate tokens within each input formula first, giving a correct
-  result instead of reproducing the corruption.
+  element to be followed by an explicit count; R's own data/adducts.rda
+  ships two Formula_add values missing one ("F", "H2CO3"), and R either
+  loops forever or silently mis-tokenizes on them. This port raises
+  promptly instead. Note: the exported src/envipat/data/adducts.csv this
+  port actually reads has since been patched to "F1"/"H2C1O3" by
+  tools/export_data.R (see MR !7) -- the source .rda is deliberately left
+  broken, so R and Python diverge on these two adducts rows. The tests
+  below exercise the malformed strings directly (not via the CSV) to keep
+  the general "reject missing explicit count" behaviour under regression.
+- R's own data/adducts.rda "M+H+NH4" entry (Formula_add "H1N1H4") has a
+  duplicated, un-merged "H" token; R's mergeform doesn't deduplicate a
+  formula's own tokens before merging, which trips a vector-recycling bug
+  that silently corrupts *all* elements processed after the duplicate.
+  This port merges duplicate tokens within each input formula first,
+  giving a correct result instead of reproducing the corruption. As
+  above, the exported adducts.csv has since been patched to "H5N1"; the
+  test below exercises the original malformed string directly to keep
+  this defensive behaviour under regression.
 
 Run inside the dev container, after `pip install -e .`:
     pytest tests/python
@@ -258,22 +267,29 @@ def test_check_ded_d_asymmetry():
 def test_flat_helpers_reject_missing_explicit_count(malformed):
     # R's mergeform/subform/check_ded/multiform tokenizer requires every
     # element to be followed by an explicit digit count; these two values
-    # are real (buggy) adducts.csv entries missing one -- R either loops
+    # are the malformed Formula_add entries R's own data/adducts.rda still
+    # ships (deliberately left unfixed there, see MR !7) -- R either loops
     # forever ("F": Formula_add of the M+F adduct) or silently
     # mis-tokenizes ("H2CO3": Formula_add of M+H2CO3-H, "C" and "O" glue
-    # into one bogus "CO" pseudo-element). This port raises promptly.
+    # into one bogus "CO" pseudo-element). This port raises promptly, and
+    # the exported adducts.csv Python reads has been patched to "F1"/
+    # "H2C1O3" so these ValueErrors no longer fire off real adducts data;
+    # kept here as general defensive-parsing regression coverage.
     with pytest.raises(ValueError):
         mergeform("C1H4", malformed)
 
 
 def test_mergeform_deduplicates_repeated_element_in_one_formula():
-    # adducts.csv's "M+H+NH4" entry has Formula_add "H1N1H4" (H appears
-    # twice, unmerged). R's mergeform doesn't merge a formula's own
-    # repeated tokens before combining, which trips a vector-recycling
-    # bug: it1 + it2 becomes a length>1 vector for the repeated element,
-    # desynchronizing every element processed afterwards. Verified
-    # directly against R: mergeform("C1H4", "H1N1H4") returns "C1H5N8" in
-    # R -- chemically nonsensical (8 nitrogens from a single N1 token).
-    # This port sums repeated tokens within each formula first, giving
-    # the chemically correct result instead.
+    # R's own data/adducts.rda "M+H+NH4" entry has Formula_add "H1N1H4"
+    # (H appears twice, unmerged; left unfixed in the .rda, see MR !7).
+    # R's mergeform doesn't merge a formula's own repeated tokens before
+    # combining, which trips a vector-recycling bug: it1 + it2 becomes a
+    # length>1 vector for the repeated element, desynchronizing every
+    # element processed afterwards. Verified directly against R:
+    # mergeform("C1H4", "H1N1H4") returns "C1H5N8" in R -- chemically
+    # nonsensical (8 nitrogens from a single N1 token). This port sums
+    # repeated tokens within each formula first, giving the chemically
+    # correct result instead. The exported adducts.csv Python reads has
+    # been patched to "H5N1" so this no longer fires off real adducts
+    # data; kept here as general defensive-parsing regression coverage.
     assert mergeform("C1H4", "H1N1H4") == ["C1H9N1"]

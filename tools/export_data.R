@@ -56,6 +56,14 @@ cat(sprintf("wrote %s (%d lines)\n", out_chemforms, length(chemforms)))
 ## 9 columns, same names/order as R/data-adducts.R:
 ## Name, calc, Charge, Mult, Mass, Ion_mode, Formula_add, Formula_ded, Multi
 load("data/adducts.rda")
+
+## Patch: 3 rows of data/adducts.rda ship malformed Formula_add strings
+## (missing explicit atom counts / a duplicated unmerged token); fixed here,
+## in the export only, not in the source .rda - see MR !7 for the writeup.
+adducts$Formula_add[adducts$Name == "M+F"]       <- "F1"
+adducts$Formula_add[adducts$Name == "M+H2CO3-H"] <- "H2C1O3"
+adducts$Formula_add[adducts$Name == "M+H+NH4"]   <- "H5N1"
+
 out_adducts <- file.path(OUT, "adducts.csv")
 write_precise(adducts, out_adducts)
 cat(sprintf("wrote %s (%d rows)\n", out_adducts, nrow(adducts)))
