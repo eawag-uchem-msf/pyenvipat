@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "numpy>=1.24"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "envipat"
+version = "0.1.0"
+description = "Isotope pattern, profile and centroid calculation for mass spectrometry (Python port of the R package enviPat)"
+requires-python = ">=3.10"
+license = "GPL-2.0-or-later"
+authors = [
+    { name = "Martin Loos" },
+    { name = "Christian Gerber" },
+]
+dependencies = [
+    "numpy>=1.24",
+]
+
+[project.urls]
+Homepage = "https://www.envipat.eawag.ch/"
+Repository = "https://github.com/blosloos/enviPat"
+
+[tool.setuptools.packages.find]
+where = ["src"]
