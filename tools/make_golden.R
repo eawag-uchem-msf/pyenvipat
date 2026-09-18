@@ -186,7 +186,7 @@ for (t1 in 0:2) {
     n <- n + 1; id <- sprintf("case_%03d", n)
     write_precise(data.frame(mz = out[[1]], abundance = out[[2]]), file.path(dir_c, paste0(id, ".csv")))
     add_case("c_direct", id, "iso_centroid_Call", params_str(t1 = t1, profile = "gaussian_filter1_t0"),
-        paste0(id, ".csv"), input_file = "case_011.csv")
+        paste0(id, ".csv"), input_file = "case_017.csv")
 }
 
 # 1i. iso_centroid_Call on a profile with a real valley and tied plateau
