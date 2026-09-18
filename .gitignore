@@ -20,3 +20,12 @@ src/*.dll
 
 # local planning docs, not synced to git
 /design/
+
+# Python build/tooling artifacts
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
