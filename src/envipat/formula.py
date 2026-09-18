@@ -34,11 +34,19 @@ parses each formula once with a small recursive-descent tokenizer
   correct nesting (``"((CH2)2O)3"`` -> ``"C6H12O3"``);
 - ``D`` is substituted for ``[2]H`` (a literal text substitution, matching
   R's ``gsub("D", "[2]H", ...)``) in ``check_ded``'s *deduct* formula,
-  ``mergeform``, ``subform`` and (via a negative lookahead so as not to
-  clobber a hypothetical "Db" symbol) ``multiform``; ``check_ded``'s
-  *formula1* substitutes ``D`` for plain ``H`` instead -- a deliberate
-  asymmetry present in R (see ``R/check_ded.R`` lines 29 vs 87) that this
-  port preserves rather than "fixing". ``check_chemform`` itself performs
+  ``mergeform`` and ``subform``; ``check_ded``'s *formula1* substitutes
+  ``D`` for plain ``H`` instead -- a deliberate asymmetry present in R
+  (see ``R/check_ded.R`` lines 29 vs 87) that this port preserves rather
+  than "fixing" (see issue #14 for that separate, bigger decision).
+  Every one of these substitutions uses a negative lookahead
+  (``D(?![a-z])``) so as not to clobber a longer symbol starting with
+  "D" -- e.g. "Dy" (dysprosium, present in ``isotopes``). R's own
+  ``gsub("D", ...)`` calls lack this guard in ``check_ded``/``mergeform``/
+  ``subform`` and silently corrupt any formula containing "Dy" there
+  (only R's ``multiform`` guards against it); this port applies the same
+  guard everywhere a ``D`` substitution happens, which is a bug fix, not
+  a behavioural port decision -- flagged as a divergence from R like the
+  ``adducts.csv`` fix. ``check_chemform`` itself performs
   *no* top-level D substitution: ``"D"`` is looked up directly as its own
   element symbol in ``isotopes`` (it is present there, with abundance 1),
   so e.g. ``check_chemform(isotopes, "D2O1")`` reports formula ``"D2O1"``
@@ -79,7 +87,13 @@ import pandas as pd
 __all__ = ["check_chemform", "check_ded", "mergeform", "subform", "multiform"]
 
 _ALLOWED_CHARS_RE = re.compile(r"^[A-Za-z0-9()\[\]]*$")
-_D_RE = re.compile(r"D")
+# Matches a literal "D" meant as the deuterium shorthand, not as the first
+# letter of a longer element symbol (e.g. "Dy" dysprosium, or a
+# hypothetical future "Db" dubnium row) -- R's own gsub("D", ...) calls in
+# check_ded/mergeform/subform lack this guard and silently corrupt any
+# formula containing "Dy" (see MR !7 discussion); multiform's R original
+# already guards against this and this port follows that pattern
+# everywhere D is substituted.
 _D_NOT_BEFORE_LOWER_RE = re.compile(r"D(?![a-z])")
 
 _INVALID_MASS = -9999
@@ -442,12 +456,12 @@ def check_ded(formulas, deduct) -> list:
     if isinstance(formulas, str):
         formulas = [formulas]
 
-    deduct_str = _D_RE.sub("[2]H", str(deduct))
+    deduct_str = _D_NOT_BEFORE_LOWER_RE.sub("[2]H", str(deduct))
     deduct_counts = _merge_counts(_parse_flat(deduct_str))
 
     out: list[bool] = []
     for formula in formulas:
-        formula_str = _D_RE.sub("H", str(formula))
+        formula_str = _D_NOT_BEFORE_LOWER_RE.sub("H", str(formula))
         formula_counts = _merge_counts(_parse_flat(formula_str))
         contained = all(
             symbol in formula_counts and formula_counts[symbol] >= count
@@ -493,14 +507,14 @@ def mergeform(formula1, formula2) -> list:
     if isinstance(formula1, str):
         formula1 = [formula1]
 
-    formula2_str = _D_RE.sub("[2]H", str(formula2))
+    formula2_str = _D_NOT_BEFORE_LOWER_RE.sub("[2]H", str(formula2))
     tokens2 = _parse_flat(formula2_str)
     _reject_repeated_symbol(tokens2, formula2_str)
     counts2 = _merge_counts(tokens2)
 
     out: list[str] = []
     for f1 in formula1:
-        f1_str = _D_RE.sub("[2]H", str(f1))
+        f1_str = _D_NOT_BEFORE_LOWER_RE.sub("[2]H", str(f1))
         tokens1 = _parse_flat(f1_str)
         _reject_repeated_symbol(tokens1, f1_str)
         counts1 = _merge_counts(tokens1)
@@ -547,12 +561,12 @@ def subform(formula1, formula2) -> list:
     if isinstance(formula1, str):
         formula1 = [formula1]
 
-    formula2_str = _D_RE.sub("[2]H", str(formula2))
+    formula2_str = _D_NOT_BEFORE_LOWER_RE.sub("[2]H", str(formula2))
     counts2 = _merge_counts(_parse_flat(formula2_str))
 
     out: list[str] = []
     for f1 in formula1:
-        f1_str = _D_RE.sub("[2]H", str(f1))
+        f1_str = _D_NOT_BEFORE_LOWER_RE.sub("[2]H", str(f1))
         counts1 = _merge_counts(_parse_flat(f1_str))
 
         failure = None

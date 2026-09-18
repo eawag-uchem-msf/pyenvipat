@@ -266,6 +266,25 @@ def test_check_ded_d_asymmetry():
     assert check_ded(["C4H10"], "C4D10") == [True]  # D read as [2]H: not contained
 
 
+def test_d_substitution_does_not_clobber_longer_symbols():
+    # check_ded/mergeform/subform's D -> [2]H (or -> H) substitution used
+    # to be a bare substring replace (matching R's own unguarded
+    # gsub("D", ...)), which corrupted any formula containing a real
+    # element symbol starting with "D", e.g. dysprosium ("Dy", present in
+    # isotopes): mergeform("C1H4", "Dy1") used to return "C1H4[2]Hy1".
+    # Only R's multiform guarded against this (D(?![a-z])). This port now
+    # applies that same guard everywhere a D substitution happens -- a
+    # bug fix, not a behavioural port decision (see module docstring and
+    # issue #14, which covers the separate, bigger question of whether
+    # D -> [2]H/H/nothing should also be made consistent across
+    # functions).
+    assert mergeform("C1H4", "Dy1") == ["C1H4Dy1"]
+    assert mergeform("Dy1", "C1H4") == ["Dy1C1H4"]
+    assert subform("C1H4Dy1", "Dy1") == ["C1H4"]
+    assert check_ded(["C1H4Dy1"], "Dy1") == [False]  # Dy1 is contained
+    assert multiform("Dy2", 2) == ["Dy4"]
+
+
 @pytest.mark.parametrize("malformed", ["F", "H2CO3"])
 def test_flat_helpers_reject_missing_explicit_count(malformed):
     # R's mergeform/subform/check_ded/multiform tokenizer requires every
