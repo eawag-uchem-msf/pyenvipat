@@ -21,6 +21,7 @@
 #include "combination.h"
 #include "peak.h"
 #include "profile.h"
+#include "iso_core.h"
 
 #if USE_IN_R == 1
     #include <R.h>
@@ -30,69 +31,7 @@
 #endif
 
 
-int alloc_peaks(int p_l, size_t iso_amount, double **m_, double **a_, int **cc_){
-
-#if USE_REALLOC == 1
-    if (ALLOC_START_PL > p_l) {
-        size_t alloc_ = sizeof(double[p_l]);
-        *m_ = (double*)malloc(alloc_);
-        if(*m_ == NULL){
-            return 1;
-        }
-        *a_ = (double*)malloc(alloc_);
-        if(*a_ == NULL){
-            free(*m_);
-            return 1;
-        }
-        alloc_ = sizeof(int[p_l * iso_amount]);
-        *cc_ = (int*)malloc(alloc_);
-        if(*cc_ == NULL){
-            free(*m_);
-            free(*a_);
-            return 1;
-        }
-    }else{
-        size_t alloc_ = ALLOC_START_PL * sizeof(double);
-        *m_ = (double*)malloc(alloc_);
-        if(*m_ == NULL){
-            return 1;
-        }
-        alloc_ = ALLOC_START_PL * sizeof(double);
-        *a_ = (double*)malloc(alloc_);
-        if(*a_ == NULL){
-            free(*m_);
-            return 1;
-        }
-        alloc_ = ALLOC_START_PL * iso_amount * sizeof(int);
-        *cc_ = (int*)malloc(alloc_);
-        if(*cc_ == NULL){
-            free(*m_);
-            free(*a_);
-            return 1;
-        }
-    }
-
-#else
-    size_t alloc_ = sizeof(double[p_l]);
-    *m_ = (double*)malloc(alloc_);
-    if(*m_ == NULL){
-        return 1;
-    }
-    *a_ = (double*)malloc(alloc_);
-    if(*a_ == NULL){
-        free(*m_);
-        return 1;
-    }
-    alloc_ = sizeof(int[p_l * iso_amount]);
-    *cc_ = (int*)malloc(alloc_);
-    if(*cc_ == NULL){
-        free(*m_);
-        free(*a_);
-        return 1;
-    }
-#endif
-    return 0;
-}
+// alloc_peaks moved to iso_core.c (shared pure-C utility)
 
 
 #if USE_IN_R == 1
@@ -102,8 +41,6 @@ int alloc_peaks(int p_l, size_t iso_amount, double **m_, double **a_, int **cc_)
         double s;
         double e;
         double ppm;
-        unsigned int  storage_limit = 2e7;
-        double *tr;
 
         PROTECT(start = AS_NUMERIC(start));
         PROTECT(end = AS_NUMERIC(end));
@@ -113,30 +50,27 @@ int alloc_peaks(int p_l, size_t iso_amount, double **m_, double **a_, int **cc_)
         e = NUMERIC_VALUE(end);
         ppm = NUMERIC_VALUE(ppm_R);
 
-        SEXP trace_R;
-        PROTECT(trace_R = NEW_NUMERIC(storage_limit));
-        tr = NUMERIC_POINTER(trace_R);
+        double* tr = NULL;
+        size_t trace_len = 0;
+        char errmsg[ISO_CORE_ERRMSG_SIZE];
 
-        *tr = s;
-
-        int n = 0;
-        while (*(tr + n) < e ) {
-            double tmp = *(tr + n) + *(tr + n) * ppm/1e6;
-            n++;
-            *(tr + n) = tmp;
-            if (n > storage_limit - 1) {
-                Rprintf("\nERROR: too many mass points for ppm trace");
-                UNPROTECT(4);
-                return R_NilValue;
-            }
+        int msg = iso_core_ppm_trace(s, e, ppm, &tr, &trace_len, errmsg);
+        if (msg) {
+            Rprintf("\n%s", errmsg);
+            UNPROTECT(3);
+            return R_NilValue;
         }
-        /* R >= 4.5 removed the non-API in-place SETLENGTH; truncate the
-           over-allocated vector via the supported Rf_lengthgets (returns a
-           copy of the first n+1 elements). */
-        trace_R = Rf_lengthgets(trace_R, n + 1);
+
+        SEXP trace_R;
+        PROTECT(trace_R = NEW_NUMERIC((long)trace_len));
+        double* tr_R = NUMERIC_POINTER(trace_R);
+        memcpy(tr_R, tr, trace_len * sizeof(double));
+        free(tr);
+
         UNPROTECT(4);
         return trace_R;
     }
+
 
     /*************************
 
@@ -1150,10 +1084,6 @@ SEXP iso_pattern(SEXP sum
     int rtm;
     int rica;
 
-    double* m_;
-    double* a_;
-    int* cc_;
-
     PROTECT(sum = AS_CHARACTER(sum));
     PROTECT(peak_limit = AS_INTEGER(peak_limit));
     PROTECT(threshold = AS_NUMERIC(threshold));
@@ -1170,7 +1100,7 @@ SEXP iso_pattern(SEXP sum
 
     UNPROTECT(5);
 
-    // parse elements ///////////////////////////////////////////////////////////////
+    // parse elements + calculate pattern (algo 1) ////////////////////////////////////
 
     PROTECT(iso_list_elem = AS_CHARACTER(iso_list_elem));
     PROTECT(iso_list_iso = AS_CHARACTER(iso_list_iso));
@@ -1208,126 +1138,50 @@ SEXP iso_pattern(SEXP sum
         strcpy(&i_il_[i*MAX_NAME_SIZE], CHARACTER_VALUE(STRING_ELT(iso_list_iso, i)));
     }
 
-    unsigned short element_amount = 0;
-    unsigned short iso_amount = 0;
     unsigned short iso_amount_global = (unsigned short)LENGTH(iso_list_elem);
 
-    Element* elements = (Element*)calloc(MAX_ELEMENTS, sizeof(Element));
-    if (elements == NULL) {
-        Rprintf("\nERROR: cannot allocate memory for elements pointer");
-        UNPROTECT(4);
-        free(i_el_);
-        free(i_il_);
-        return R_NilValue;
-    }
-
-    if ( parse_sum_formula_vector_R(
-                                    elements,
-                                    s,
-                                    &element_amount,
-                                    &iso_amount,
-                                    iso_amount_global,
-                                    i_el_,
-                                    i_il_,
-                                    REAL(iso_list_mass),
-                                    REAL(iso_list_abu)
-                                    )
-        ) {
-        Rprintf("\nERROR: cannot parse sum formula with the given isolist, ");
-        free(elements);
-        UNPROTECT(4);
-        free(i_el_);
-        free(i_il_);
-        return R_NilValue;
-    }
-    UNPROTECT(4);
-    free(i_el_);
-    free(i_il_);
-    qsort(elements, element_amount, sizeof(Element), elements_sort_by_isoamount_inc);
-
-    // end parse elements ///////////////////////////////////////////////////////////////
-
-    if (p_l >= INT_LIMIT || p_l < 1) {
-        Rprintf("\ninvalid peak limit");
-        return R_NilValue;
-    }
+    IsoPatternResult result;
+    char errmsg[ISO_CORE_ERRMSG_SIZE];
 
 #if SHOW_DETAILS == 1
-    Rprintf("\n%s, algo1, ",s);
+    Rprintf("\n%s, algo1, ", s);
     clock_t start, end;
     double cpu_time_used = 0.0;
     start = clock();
 #endif
 
-    size_t  peak_amount = 0;
+    int core_msg = iso_core_pattern_algo1(s, p_l, t, rtm,
+                                           i_el_, i_il_,
+                                           REAL(iso_list_mass), REAL(iso_list_abu),
+                                           iso_amount_global,
+                                           &result, errmsg);
 
-    if ( rtm > 4 || rtm < 0) {
-        Rprintf("\nERROR: wrong value for rtm");
-        return R_NilValue;
-    }
+#if SHOW_DETAILS == 1
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    Rprintf("\n    peak_amount: %zu, elapsed_time: %lf, ", result.peak_amount, cpu_time_used);
+#endif
 
-    if (iso_amount >= MAX_ISO_SIZE
-        || iso_amount <= 0
-        || element_amount <= 0
-        || element_amount >= MAX_ELEMENTS
-        ) {
-        free(elements);
-        return R_NilValue;
-    }
+    UNPROTECT(4);
+    free(i_el_);
+    free(i_il_);
 
-    // allocate pointer for peaks ///////////////////////////////////////////////////////////////
-    int msg_peaks = alloc_peaks(p_l, iso_amount, &m_, &a_, &cc_);
-    if (msg_peaks) {
-        Rprintf("\nERROR: pointer allocation, error code: %d", msg_peaks);
-        free(elements);
-        return R_NilValue;
-    }
-
-    //SEXP list_names;
-    char* l_n = (char*)calloc((iso_amount + 2) * MAX_NAME_SIZE, sizeof(char));
-    if(l_n == NULL){
-        Rprintf("\nERROR: cannot allocate memory for list name pointer");
-        free(elements);
-        free(m_);
-        free(a_);
-        free(cc_);
-        return R_NilValue;
-    }
-    strncpy(l_n, "mass\0", 5 * sizeof(char));
-    strncpy(l_n + MAX_NAME_SIZE, "abundance\0", 10 * sizeof(char));
-    size_t index = 0;
-    for (ptrdiff_t b = 0; b < element_amount; b++) {
-        for (ptrdiff_t bb = 0; bb < (elements+b)->iso_amount; bb++) {
-            strncpy(l_n + (index + 2) * MAX_NAME_SIZE, ((elements + b)->isotopes + bb)->isotope, MAX_NAME_SIZE*sizeof(char));
-            index++;
+    if (core_msg) {
+        if (errmsg[0] != '\0') {
+            Rprintf("\n%s", errmsg);
         }
-    }
-
-    CompoundMulti* monoisotopic = (CompoundMulti*)calloc(1,sizeof(CompoundMulti));
-    if(monoisotopic == NULL){
-        Rprintf("\nERROR: cannot allocate memory for list name pointer");
-        free(elements);
-        free(m_);
-        free(a_);
-        free(cc_);
-        free(l_n);
         return R_NilValue;
     }
 
-    calc_monoisotopic(elements, element_amount, monoisotopic);
-    long double mono_abundance = monoisotopic->abundance;
-    free(monoisotopic);
-
-    int msg = calc_pattern_algo_1(elements, &peak_amount, t, iso_amount,element_amount, mono_abundance,p_l,rtm, &m_, &a_, &cc_);
-    if(msg || peak_amount < 1){
-        Rprintf("\nERROR: Unable to calculate isotope pattern, exit code %d",msg);
-        free(cc_);
-        free(l_n);
-        free(m_);
-        free(a_);
-        free(elements);
-        return R_NilValue;
-    }
+    Element* elements = result.elements;
+    unsigned short element_amount = result.element_amount;
+    unsigned short iso_amount = result.iso_amount;
+    double* m_ = result.mass;
+    double* a_ = result.abundance;
+    int* cc_ = result.compound;
+    size_t peak_amount = result.peak_amount;
+    char* l_n = result.names;
+    // end parse elements + calculate pattern (algo 1) ////////////////////////////////
 
     const size_t name_size = MAX_NAME_SIZE * sizeof(char);
     if (rica) {
@@ -1347,99 +1201,29 @@ SEXP iso_pattern(SEXP sum
             memcpy(tmp, (elements+i)->name, name_size);
             tmp[ MAX_NAME_SIZE - 1] = '\0';
 
-            // #pragma GCC diagnostic push
-            // #pragma GCC diagnostic ignored "-Wstringop-truncation"
-            //     strncpy(tmp, (elements+i)->name, name_size);
-            // #pragma GCC diagnostic pop
-
             SET_STRING_ELT(list_names_elements, i,  mkChar(tmp));
         }
 
         setAttrib(out, R_NamesSymbol, list_names_elements);
 
-        free(elements);
-        free(m_);
-        free(a_);
-        free(l_n);
-        free(cc_);
+        iso_pattern_result_free(&result);
 
         UNPROTECT(2);
         return out;
     }else{
 
-        //SEXP iso_pattern = PROTECT(allocVector(VECSXP, 3 + iso_amount));
-        //SEXP mass_R;
-        //SEXP a_R;
-        //double *p_m_R;
-        //double *p_a_R;
-        //PROTECT(mass_R = NEW_NUMERIC((long)peak_amount));
-        //PROTECT(a_R = NEW_NUMERIC((long)peak_amount));
-        //p_m_R = NUMERIC_POINTER(mass_R);
-        //p_a_R = NUMERIC_POINTER(a_R);
-
-        //for (ptrdiff_t k = 0; k < peak_amount; k ++) {
-            //p_m_R[k] = *(m_ + k);
-            //p_a_R[k] = *(a_ + k);
-        //}
-
-        //SET_VECTOR_ELT(iso_pattern, 0, mass_R);
-        //SET_VECTOR_ELT(iso_pattern, 1, a_R);
-
-        //for (ptrdiff_t q = 0; q < iso_amount; q++) {
-            //SEXP compound_R;
-            //int *compound;
-            //PROTECT(compound_R = NEW_INTEGER((long)peak_amount));
-            //compound = INTEGER_POINTER(compound_R);
-
-            //for (ptrdiff_t r = 0; r < peak_amount; r++) {
-                //compound[r] = *(cc_ + r * iso_amount + q);
-            //}
-
-            //SET_VECTOR_ELT(iso_pattern, q + 2, compound_R);
-            //UNPROTECT(1);
-        //}
-
-        //PROTECT(list_names = allocVector(STRSXP, iso_amount + 3));
-        //for(ptrdiff_t o = 0; o < iso_amount + 2; o++){
-            //char tmp[ MAX_NAME_SIZE ];
-            //strncpy(tmp, l_n + o * MAX_NAME_SIZE, MAX_NAME_SIZE * sizeof(char));
-            //SET_STRING_ELT(list_names, o,  mkChar(tmp));
-        //}
-        //SET_STRING_ELT(list_names, iso_amount + 2,  mkChar("NAMES"));
-        //setAttrib(iso_pattern, R_NamesSymbol, list_names);
-        //SET_VECTOR_ELT(iso_pattern, iso_amount + 2, list_names);
-
-        //free(m_);
-        //free(a_);
-        //free(l_n);
-        //free(cc_);
-        //free(elements);
-        //UNPROTECT(4);
-        //return iso_pattern;
-
-
         int nx = (int)peak_amount, ny = iso_amount + 2;
         double *rans;
-        //double tmp;
         SEXP ans;
         SEXP dim;
         SEXP dimnames;
-        //SEXP dimx;
         SEXP dimy;
 
         PROTECT(ans = allocVector(REALSXP, nx*ny));
-        //PROTECT(dimx = allocVector(STRSXP, nx));
         PROTECT(dimy = allocVector(STRSXP, ny));
         rans = REAL(ans);
 
-        //char* str = (char*)malloc(MAX_NAME_SIZE * sizeof(char));
-
         for(int i = 0; i < nx; i++) {
-            //tmp = i;
-
-			//snprintf(str, MAX_NAME_SIZE, "%d", i + 1);
-            //SET_STRING_ELT(dimx, i, mkChar(str));
-            //SET_STRING_ELT(dimx, i, mkChar("x"));
 
             rans[i] = m_[i];
 			rans[i + nx] = a_[i];
@@ -1453,11 +1237,6 @@ SEXP iso_pattern(SEXP sum
                     memcpy(tmp_s, l_n + j* MAX_NAME_SIZE, MAX_NAME_SIZE * sizeof(char));
                     tmp_s[ MAX_NAME_SIZE - 1] = '\0';
 
-                    // #pragma GCC diagnostic push
-                    // #pragma GCC diagnostic ignored "-Wstringop-truncation"
-                    //     strncpy(tmp_s, l_n + j* MAX_NAME_SIZE, MAX_NAME_SIZE * sizeof(char));
-                    // #pragma GCC diagnostic pop
-
 					SET_STRING_ELT(dimy, j,  mkChar(tmp_s));
 				}
 				rans[i + nx*j] = cc_[i * iso_amount + j - 2];
@@ -1470,28 +1249,17 @@ SEXP iso_pattern(SEXP sum
         setAttrib(ans, R_DimSymbol, dim);
 
         PROTECT(dimnames = allocVector(VECSXP, 2));
-        //SET_VECTOR_ELT(dimnames, 0, dimx);
         SET_VECTOR_ELT(dimnames, 1, dimy);
         setAttrib(ans, R_DimNamesSymbol, dimnames);
 
         UNPROTECT(4);
 
-        free(m_);
-        free(a_);
-        free(cc_);
-        free(l_n);
-        free(elements);
-
-
-#if SHOW_DETAILS == 1
-        end = clock();
-        cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-        Rprintf("\n    peak_amount: %zu, elapsed_time: %lf, ",peak_amount, cpu_time_used);
-#endif
+        iso_pattern_result_free(&result);
 
         return(ans);
     }
 }
+
 
 /*************************
 
@@ -2123,10 +1891,6 @@ SEXP iso_pattern_4(SEXP sum
     int rtm;
     int rica;
 
-    double* m_;
-    double* a_;
-    int* cc_;
-
     PROTECT(sum = AS_CHARACTER(sum));
     PROTECT(peak_limit = AS_INTEGER(peak_limit));
     PROTECT(threshold = AS_NUMERIC(threshold));
@@ -2144,7 +1908,7 @@ SEXP iso_pattern_4(SEXP sum
 
     UNPROTECT(5);
 
-    // parse elements ///////////////////////////////////////////////////////////////
+    // parse elements + calculate pattern (algo 4) ////////////////////////////////////
     PROTECT(iso_list_elem = AS_CHARACTER(iso_list_elem));
     PROTECT(iso_list_iso = AS_CHARACTER(iso_list_iso));
     PROTECT(iso_list_mass = AS_NUMERIC(iso_list_mass));
@@ -2181,121 +1945,52 @@ SEXP iso_pattern_4(SEXP sum
         strcpy(&i_il_[i*MAX_NAME_SIZE], CHARACTER_VALUE(STRING_ELT(iso_list_iso, i)));
     }
 
-    unsigned short element_amount = 0;
-    unsigned short iso_amount = 0;
     unsigned short iso_amount_global = (unsigned short)LENGTH(iso_list_elem);
 
-    Element* elements = (Element*)calloc(MAX_ELEMENTS, sizeof(Element));
-    if (elements == NULL) {
-        Rprintf("\nERROR: cannot allocate memory for elements pointer");
-        UNPROTECT(4);
-        free(i_el_);
-        free(i_il_);
-        return R_NilValue;
-    }
-
-    if ( parse_sum_formula_vector_R(
-                                    elements,
-                                    s,
-                                    &element_amount,
-                                    &iso_amount,
-                                    iso_amount_global,
-                                    i_el_,
-                                    i_il_,
-                                    REAL(iso_list_mass),
-                                    REAL(iso_list_abu)
-                                    )
-        ) {
-        Rprintf("\nERROR: cannot parse sum formula with the given isolist, ");
-        free(elements);
-        UNPROTECT(4);
-        free(i_el_);
-        free(i_il_);
-        return R_NilValue;
-    }
-    UNPROTECT(4);
-    free(i_el_);
-    free(i_il_);
-    qsort(elements, element_amount, sizeof(Element), elements_sort_by_isoamount_inc);
-
-    // end parse elements ///////////////////////////////////////////////////////////////
-
-
-    if (p_l >= INT_LIMIT || p_l < 1) {
-        Rprintf("\ninvalid peak limit");
-        return R_NilValue;
-    }
+    IsoPatternResult result;
+    char errmsg[ISO_CORE_ERRMSG_SIZE];
 
 #if SHOW_DETAILS == 1
-    Rprintf("\n%s, algo4, ",s);
+    Rprintf("\n%s, algo4, ", s);
     clock_t start, end;
     double cpu_time_used = 0.0;
     start = clock();
 #endif
 
-    size_t  peak_amount = 0;
+    int core_msg = iso_core_pattern_algo4(s, p_l, t, rtm,
+                                           i_el_, i_il_,
+                                           REAL(iso_list_mass), REAL(iso_list_abu),
+                                           iso_amount_global,
+                                           &result, errmsg);
 
-    if ( rtm > 4 || rtm < 0) {
-        Rprintf("\nERROR: wrong value for rtm");
-        return R_NilValue;
-    }
+#if SHOW_DETAILS == 1
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    Rprintf("\n    peak_amount: %zu, elapsed_time: %lf, ", result.peak_amount, cpu_time_used);
+#endif
 
-    if (iso_amount >= MAX_ISO_SIZE
-        || iso_amount <= 0
-        || element_amount <= 0
-        || element_amount >= MAX_ELEMENTS
-        ) {
-        free(elements);
-        return R_NilValue;
-    }
+    UNPROTECT(4);
+    free(i_el_);
+    free(i_il_);
 
-    // allocate pointer for peaks ///////////////////////////////////////////////////////////////
-    int msg_peaks = alloc_peaks(p_l, iso_amount, &m_, &a_, &cc_);
-    if (msg_peaks) {
-        Rprintf("\nERROR: pointer allocation, error code: %d", msg_peaks);
-        free(elements);
-        return R_NilValue;
-    }
-
-    //SEXP list_names;
-    char* l_n = (char*)calloc((iso_amount + 2) * MAX_NAME_SIZE, sizeof(char));
-    if(l_n == NULL){
-        Rprintf("\nERROR: cannot allocate memory column names");
-        free(elements);
-        free(m_);
-        free(a_);
-        free(cc_);
-        return R_NilValue;
-    }
-    strncpy(l_n, "mass\0", 5 * sizeof(char));
-    strncpy(l_n + MAX_NAME_SIZE, "abundance\0", 10 * sizeof(char));
-    size_t index = 0;
-    for (ptrdiff_t b = 0; b < element_amount; b++) {
-        for (ptrdiff_t bb = 0; bb < (elements+b)->iso_amount; bb++) {
-            strncpy(l_n + (index + 2) * MAX_NAME_SIZE, ((elements + b)->isotopes + bb)->isotope, MAX_NAME_SIZE*sizeof(char));
-            index++;
+    if (core_msg) {
+        if (errmsg[0] != '\0') {
+            Rprintf("\n%s", errmsg);
         }
-    }
-
-    long double mono_abundance = -1.0;
-    for (ptrdiff_t  i = 0; i < element_amount; i++) {
-        mono_abundance *= pow((elements + i)->isotopes[0].abundance, (elements + i)->amount);
-    }
-
-    long double max_a = 0;
-    int msg = calc_pattern_algo_4(elements, &peak_amount, t, iso_amount, element_amount, mono_abundance, p_l, l_n, rtm, &m_, &a_, &cc_, &max_a);
-    if(msg || peak_amount == 0){
-        Rprintf("\nERROR: cannot combine combinations, exit code: %d", msg);
-        free(elements);
-        free(m_);
-        free(a_);
-        free(cc_);
-        free(l_n);
         return R_NilValue;
-
     }
 
-    // return values to R ////////////////////////////////////////////////////////////////////
+    Element* elements = result.elements;
+    unsigned short element_amount = result.element_amount;
+    unsigned short iso_amount = result.iso_amount;
+    double* m_ = result.mass;
+    double* a_ = result.abundance;
+    int* cc_ = result.compound;
+    size_t peak_amount = result.peak_amount;
+    char* l_n = result.names;
+    // end parse elements + calculate pattern (algo 4) ////////////////////////////////
+
+    // return values to R ////////////////////////////////////////////////////////////////
     if (rica) {
 
         SEXP list_names_elements;
@@ -2325,11 +2020,6 @@ SEXP iso_pattern_4(SEXP sum
                 memcpy(tmp, (elements+i)->name, MAX_NAME_SIZE * sizeof(char));
                 tmp[ MAX_NAME_SIZE - 1] = '\0';
 
-                // #pragma GCC diagnostic push
-                // #pragma GCC diagnostic ignored "-Wstringop-truncation"
-                //     strncpy(tmp, (elements+i)->name, MAX_NAME_SIZE * sizeof(char));
-                // #pragma GCC diagnostic pop
-
                 j++;
             }else if(j > 0){
                 strcat(tmp, (elements + i)->name);
@@ -2342,88 +2032,23 @@ SEXP iso_pattern_4(SEXP sum
 
         setAttrib(out, R_NamesSymbol, list_names_elements);
 
-        free(m_);
-        free(a_);
-        free(l_n);
-        free(cc_);
-        free(elements);
+        iso_pattern_result_free(&result);
         UNPROTECT(2);
         return out;
     }else{
 
-        //SEXP iso_pattern = PROTECT(allocVector(VECSXP, 3 + iso_amount));
-        //SEXP mass_R;
-        //SEXP a_R;
-        //double *p_m_R;
-        //double *p_a_R;
-        //PROTECT(mass_R = NEW_NUMERIC((long)peak_amount));
-        //PROTECT(a_R = NEW_NUMERIC((long)peak_amount));
-        //p_m_R = NUMERIC_POINTER(mass_R);
-        //p_a_R = NUMERIC_POINTER(a_R);
-
-        //for (ptrdiff_t k = 0; k < peak_amount; k ++) {
-            //p_m_R[k] = *(m_ + k);
-            //p_a_R[k] = *(a_ + k);
-        //}
-
-        //SET_VECTOR_ELT(iso_pattern, 0, mass_R);
-        //SET_VECTOR_ELT(iso_pattern, 1, a_R);
-
-        //for (ptrdiff_t q = 0; q < iso_amount; q++) {
-            //SEXP compound_R;
-            //int *compound;
-            //PROTECT(compound_R = NEW_INTEGER((long)peak_amount));
-            //compound = INTEGER_POINTER(compound_R);
-
-            //for (ptrdiff_t r = 0; r < peak_amount; r++) {
-                //compound[r] = *(cc_ + r * iso_amount + q);
-            //}
-
-            //SET_VECTOR_ELT(iso_pattern, q + 2, compound_R);
-            //UNPROTECT(1);
-        //}
-
-        //PROTECT(list_names = allocVector(STRSXP, iso_amount + 3));
-        //for(ptrdiff_t o = 0; o < iso_amount + 2; o++){
-            //char tmp[ MAX_NAME_SIZE ];
-            //strncpy(tmp, l_n + o * MAX_NAME_SIZE, MAX_NAME_SIZE * sizeof(char));
-            //SET_STRING_ELT(list_names, o,  mkChar(tmp));
-        //}
-        //SET_STRING_ELT(list_names, iso_amount + 2,  mkChar("NAMES"));
-        //setAttrib(iso_pattern, R_NamesSymbol, list_names);
-        //SET_VECTOR_ELT(iso_pattern, iso_amount + 2, list_names);
-
-        //free(m_);
-        //free(a_);
-        //free(l_n);
-        //free(cc_);
-        //free(elements);
-        //UNPROTECT(4);
-
-        //return iso_pattern;
-
-
         int nx = (int)peak_amount, ny = iso_amount + 2;
         double *rans;
-        //double tmp;
         SEXP ans;
         SEXP dim;
         SEXP dimnames;
-        //SEXP dimx;
         SEXP dimy;
 
         PROTECT(ans = allocVector(REALSXP, nx*ny));
-        //PROTECT(dimx = allocVector(STRSXP, nx));
         PROTECT(dimy = allocVector(STRSXP, ny));
         rans = REAL(ans);
 
-        //char* str = (char*)malloc(MAX_NAME_SIZE * sizeof(char));
-
         for(int i = 0; i < nx; i++) {
-            //tmp = i;
-
-			//snprintf(str, MAX_NAME_SIZE, "%d", i + 1);
-            //SET_STRING_ELT(dimx, i, mkChar("x"));
 
             rans[i] = m_[i];
 			rans[i + nx] = a_[i];
@@ -2437,11 +2062,6 @@ SEXP iso_pattern_4(SEXP sum
                         memcpy(tmp_s, l_n + j* MAX_NAME_SIZE, MAX_NAME_SIZE * sizeof(char));
                         tmp_s[ MAX_NAME_SIZE - 1] = '\0';
 
-                        // #pragma GCC diagnostic push
-                        // #pragma GCC diagnostic ignored "-Wstringop-truncation"
-                        //     strncpy(tmp_s, l_n + j* MAX_NAME_SIZE, MAX_NAME_SIZE * sizeof(char));
-                        // #pragma GCC diagnostic pop
-
 						SET_STRING_ELT(dimy, j,  mkChar(tmp_s));
 					}
 					rans[i + nx*j] = cc_[i * iso_amount + j - 2];
@@ -2454,30 +2074,17 @@ SEXP iso_pattern_4(SEXP sum
         setAttrib(ans, R_DimSymbol, dim);
 
         PROTECT(dimnames = allocVector(VECSXP, 2));
-        //SET_VECTOR_ELT(dimnames, 0, dimx);
         SET_VECTOR_ELT(dimnames, 1, dimy);
         setAttrib(ans, R_DimNamesSymbol, dimnames);
 
-        //setAttrib(ans, R_ColumnNamesSymbol, dimy);
-
-
         UNPROTECT(4);
 
-        free(m_);
-        free(a_);
-        free(cc_);
-        free(l_n);
-        free(elements);
-
-#if SHOW_DETAILS == 1
-        end = clock();
-        cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-        Rprintf("\n    peak_amount: %zu, elapsed_time: %lf, ",peak_amount, cpu_time_used);
-#endif
+        iso_pattern_result_free(&result);
 
         return(ans);
     }
 }
+
 
     /*************************
 
@@ -2503,93 +2110,19 @@ SEXP iso_pattern_4(SEXP sum
         int t = INTEGER_VALUE(type);
         int n = LENGTH(profile_mass);
 
-        double cent_size[n];
-        size_t cent_size_alloc = sizeof(cent_size);
-
-        double* c_m = (double*)malloc(cent_size_alloc);
-        double* c_a = (double*)malloc(cent_size_alloc);
-
-        double centroid = 0.0;
-        double sum_sticks = 0.0;
-
-        double upper_sum_a = 0.0;
-        double lower_sum_a = 0.0;
-        double max_centroid = 0.0;
-        double max_intensoid = 0.0;
-        int centroid_count = 0;
-
+        double* c_m = NULL;
+        double* c_a = NULL;
         int j = 0;
-        int  step = 1;
+        char errmsg[ISO_CORE_ERRMSG_SIZE];
 
-        for (ptrdiff_t  i = step; i < n - step; i++) {
-            if (t == 1)
-            {
-                if (    (
-                         *(p_a + i) > *(p_a + i + step) && *(p_a + i) > *(p_a + i - step)
-                         )
-                    &&
-                    (
-                     (*(p_m + i - step) < *(p_m + i)) && (*(p_m + i) < *(p_m + i + step))
-                     )
-
-                    )
-                {
-                    *(c_a + j) = *(p_a + i);
-                    *(c_m + j) = *(p_m + i);
-                    j++;
-
-                    if (*(c_a + j) > max_intensoid) {
-                        max_intensoid = *(c_a + j);
-                    }
-                }
-            }
-            else{
-
-                centroid += *(p_a + i) * *(p_m + i);
-                sum_sticks += *(p_a + i);
-
-                double diff_mass = *(p_m + i) - *(p_m + i - 1);
-                upper_sum_a += diff_mass * *(p_a + i);
-                lower_sum_a += diff_mass * *(p_a + i - 1);
-
-                if (( (*(p_a + i) <= *(p_a + i + step) && *(p_a + i) < *(p_a + i - step)) || i == n - step - 1)) {
-
-                    double centroid_temp = (upper_sum_a + lower_sum_a)/2.0;
-                    if (t == 2) {
-                        *(c_a + j) = *(p_a + i);
-                        *(c_m + j) = *(p_m + i);
-                        j++;
-                    }
-
-                    if (max_centroid < centroid_temp) {
-                        max_centroid = centroid_temp;
-                    }
-
-                    if (t == 0) {
-                        if (sum_sticks > 0.0 && centroid_temp > 0.0 ) {
-                            *(c_a + j) = centroid_temp;
-                            *(c_m + j) = centroid/sum_sticks;
-                            j++;
-                            centroid_count++;
-                        }
-                    }
-                    centroid = 0.0;
-                    sum_sticks = 0.0;
-
-                    upper_sum_a = 0.0;
-                    lower_sum_a = 0.0;
-                }
-            }
-        }
-
-        if(t == 0){
-            for (ptrdiff_t l = 0; l < centroid_count; l++) {
-                double temp = *(c_a +  l) * (100/max_centroid);
-                *(c_a + l) = temp;
-            }
-        }
+        int msg = iso_core_centroid(p_m, p_a, n, t, &c_m, &c_a, &j, errmsg);
 
         UNPROTECT(3);
+
+        if (msg) {
+            Rprintf("\n%s", errmsg);
+            return R_NilValue;
+        }
 
         SEXP POI = PROTECT(allocVector(VECSXP, 2));
         SEXP POI_m_R;
@@ -2616,6 +2149,7 @@ SEXP iso_pattern_4(SEXP sum
 
         return POI;
     }
+
 
 
     /*************************
@@ -2674,30 +2208,15 @@ SEXP iso_pattern_4(SEXP sum
         size_t tr_num = (size_t)LENGTH(trace);
         size_t n = (size_t)LENGTH(mass);
 
-        if (tr_num >= INT_LIMIT || tr_num < 1) {
-            Rprintf("\ninvalid amount of trace values");
-			UNPROTECT(7);
-            return R_NilValue;
-        }
-        if (n >= INT_LIMIT || n < 1) {
-            Rprintf("\ninvalid peak limit");
-			UNPROTECT(7);
-            return R_NilValue;
-        }
-
-        double* p_m;
-        double* p_a;
-
-        p_m = (double*)malloc(sizeof(double[tr_num]));
-        p_a = (double*)malloc(sizeof(double[tr_num]));
-
-
+        double* p_m = NULL;
+        double* p_a = NULL;
         unsigned int p_n = 0;
+        char errmsg[ISO_CORE_ERRMSG_SIZE];
 
-        int msg = calc_profile_with_trace(n, m, a, tr_num, tr, p_m, p_a, &p_n, r, p_t, t, f);
+        int msg = iso_core_profile_with_trace(p_t, m, n, a, tr, tr_num, r, t, f, &p_m, &p_a, &p_n, errmsg);
         if (msg) {
-            Rprintf("\nCould not calculate profile");
-			UNPROTECT(7);
+            Rprintf("\n%s", errmsg);
+            UNPROTECT(7);
             return R_NilValue;
         }
 
