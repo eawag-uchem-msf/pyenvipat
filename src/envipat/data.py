@@ -62,8 +62,15 @@ def _data_path(filename: str):
 
 @lru_cache(maxsize=1)
 def _load_isotopes() -> pd.DataFrame:
+    # float_precision="round_trip": these CSVs were exported with sprintf
+    # ("%.17g", .) specifically to round-trip every double bit-exactly (see
+    # tools/export_data.R); pandas' default C float parser ("low") does not
+    # guarantee that for 17-significant-digit strings and silently drops the
+    # last 1-2 bits on some rows (discovered while verifying issue #7's
+    # check_chemform against R: isotopes.csv had 6/308 mass and 81/308
+    # abundance values off by 1 ULP, adducts.csv 1/51 Mass value).
     with resources.as_file(_data_path("isotopes.csv")) as path:
-        return pd.read_csv(path)
+        return pd.read_csv(path, float_precision="round_trip")
 
 
 @lru_cache(maxsize=1)
@@ -77,13 +84,13 @@ def _load_chemforms() -> pd.Series:
 @lru_cache(maxsize=1)
 def _load_adducts() -> pd.DataFrame:
     with resources.as_file(_data_path("adducts.csv")) as path:
-        return pd.read_csv(path)
+        return pd.read_csv(path, float_precision="round_trip")
 
 
 @lru_cache(maxsize=1)
 def _load_resolution_list() -> dict:
     with resources.as_file(_data_path("resolution_list.csv")) as path:
-        long_df = pd.read_csv(path)
+        long_df = pd.read_csv(path, float_precision="round_trip")
     curves: dict = {}
     for name, group in long_df.groupby("name", sort=False):
         curves[name] = group[["mz", "R"]].reset_index(drop=True)
