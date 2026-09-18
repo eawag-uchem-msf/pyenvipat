@@ -1,0 +1,5 @@
+"case_id","fn","params","output_file","input_file","notes"
+"case_001","check_chemform","get_sorted=FALSE;get_list=FALSE;n_formulas=107","case_001.csv","","broad_pass_all_chemforms"
+"case_002","check_chemform","get_sorted=FALSE;get_list=FALSE;n_formulas=9","case_002.csv","","edge_cases: invalid formulas / nested brackets / isotope labels / D / empty string"
+"case_003","check_chemform","get_sorted=TRUE;get_list=FALSE;n_formulas=3","case_003.csv","","get_sorted=TRUE reorders elements to isotopes-table order"
+"case_004","check_chemform","get_sorted=FALSE;get_list=TRUE;n_formulas=10","case_004.csv","","get_list=TRUE flattened to long format (formula,element,count)"

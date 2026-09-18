@@ -1,0 +1,7 @@
+"case_id","fn","params","output_file","input_file","notes"
+"case_001","mergeform","n_pairs=15","case_001.csv","",""
+"case_002","mergeform","n_pairs=3;scenario=D_and_isotope_labels","case_002.csv","",""
+"case_003","subform","n_fragments=3","case_003.csv","","valid_subtractions"
+"case_004","subform","n_pairs=2;scenario=failure_message_paths","case_004.csv","","returns a human-readable failure string instead of erroring"
+"case_005","multiform","n_pairs=4","case_005.csv","",""
+"case_006","check_ded","n_formulas=4","case_006.csv","","D normalised to plain H here (not [2]H like the other helpers) - deliberate asymmetry to preserve"
