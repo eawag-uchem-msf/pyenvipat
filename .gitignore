@@ -17,3 +17,6 @@ src/*.dll
 .devcontainer
 
 .claude
+
+# local planning docs, not synced to git
+/design/
