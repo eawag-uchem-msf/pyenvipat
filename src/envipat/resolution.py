@@ -20,6 +20,12 @@ diagnostic score that ``getR`` never reads -- since ``spar`` is supplied,
 R's own ``smooth.spline`` skips any GCV/CV search entirely and fits directly
 for that ``spar``, so it is not reproduced here).
 
+``get_resolution`` still exposes ``scipy.interpolate.make_smoothing_spline``
+as an explicit opt-in (``method="scipy"``) for callers who don't need
+R-bit-compatibility and would rather use an upstream-maintained fitter; it
+is not a recommended replacement for the default path -- see that
+parameter's docstring and MR !6 for the measured accuracy gap.
+
 Implementation notes (see ``stats::smooth.spline``'s R and Fortran sources
 -- ``R/smooth.spline.R``, and ``src/library/stats/src/{sbart.c,stxwx.f,
 sgram.f,sslvrg.f}`` in R's own sources -- for the reference algorithm this
@@ -70,9 +76,11 @@ full comparison against the golden fixtures).
 
 from __future__ import annotations
 
+from typing import Literal
+
 import numpy as np
 import pandas as pd
-from scipy.interpolate import BSpline
+from scipy.interpolate import BSpline, make_smoothing_spline
 
 __all__ = ["get_resolution"]
 
@@ -249,6 +257,7 @@ def get_resolution(
     resmass: pd.DataFrame,
     nknots: int = 13,
     spar: float = 0.1,
+    method: Literal["r_exact", "scipy"] = "r_exact",
 ) -> pd.Series:
     """Interpolate instrument resolution at each checked formula's mass.
 
@@ -271,10 +280,31 @@ def get_resolution(
     nknots
         Number of knots for the smoothing spline (default 13, matching R's
         ``getR`` default). Must be between 3 and the number of unique
-        masses in ``resmass``.
+        masses in ``resmass``. Meaningless -- and must be left at its
+        default -- under ``method="scipy"``, since
+        ``scipy.interpolate.make_smoothing_spline`` has no knot-count
+        parameter; passing a non-default value raises ``ValueError``
+        rather than silently ignoring it.
     spar
         Smoothing parameter in (0, 1] (default 0.1, matching R's ``getR``
-        default).
+        default). Meaningless -- and must be left at its default -- under
+        ``method="scipy"``, for the same reason as ``nknots``.
+    method
+        Which smoothing-spline backend to fit with:
+
+        - ``"r_exact"`` (default): the from-scratch reimplementation of
+          R's ``stats::smooth.spline(nknots=, spar=)`` described above.
+          Matches R to ~1e-13--1e-15 relative error and is what this
+          port's accuracy target (``rtol=1e-6``) assumes.
+        - ``"scipy"``: fits with
+          :func:`scipy.interpolate.make_smoothing_spline` instead (its own
+          GCV-selected smoothing; no ``nknots``/``spar`` knobs). This is an
+          explicit opt-in, *not* a recommended replacement for the default:
+          MR !6 measured up to ~17% relative error against R across the
+          ``resolution_list`` curves, far outside this port's accuracy
+          target -- see MR !6's "Why not
+          scipy.interpolate.make_smoothing_spline?" section for the full
+          comparison. Use it only when exact R-reproduction isn't required.
 
     Returns
     -------
@@ -287,12 +317,26 @@ def get_resolution(
     R's ``getR`` also accepts a ``plotit`` argument to plot the fit; that is
     intentionally not ported here (no plotting side effect).
     """
+    if method not in ("r_exact", "scipy"):
+        raise ValueError(f"invalid method: {method!r}; use 'r_exact' or 'scipy'")
     if len(resmass) < 10:
         raise ValueError("not enough data points in resmass")
-    if nknots < 3 or nknots > len(resmass):
-        raise ValueError("invalid nknots")
-    if spar <= 0 or spar >= 1:
-        raise ValueError("invalid spar; spar=(0,1]")
+    if method == "scipy":
+        # nknots/spar have no scipy.interpolate.make_smoothing_spline
+        # equivalent (see module + method docstrings); raise rather than
+        # silently ignoring an explicit non-default caller setting.
+        if nknots != 13 or spar != 0.1:
+            raise ValueError(
+                "nknots/spar are meaningless for method='scipy' "
+                "(scipy.interpolate.make_smoothing_spline has no such "
+                "parameters); leave them at their defaults, or use "
+                "method='r_exact' to control the fit via nknots/spar"
+            )
+    else:
+        if nknots < 3 or nknots > len(resmass):
+            raise ValueError("invalid nknots")
+        if spar <= 0 or spar >= 1:
+            raise ValueError("invalid spar; spar=(0,1]")
     if bool(np.any(checked["warning"])):
         raise ValueError("invalid chemical formula in checked['warning']")
 
@@ -303,6 +347,14 @@ def get_resolution(
     if np.any(masses < resmass_x.min()) or np.any(masses > resmass_x.max()):
         raise ValueError("some mean_mass out of range of resmass")
 
-    fit = _fit_smooth_spline(resmass_x, resmass_y, nknots=nknots, spar=spar)
-    resolution = fit(masses)
+    if method == "scipy":
+        # Same dedup/aggregation as the r_exact path, so the two code
+        # paths only diverge in the fitting math, not in how (possibly
+        # unsorted / duplicate-x) resmass rows are handled.
+        ux, ybar, wbar = _dedup_and_aggregate(resmass_x, resmass_y)
+        spline = make_smoothing_spline(ux, ybar, w=wbar)
+        resolution = spline(masses)
+    else:
+        fit = _fit_smooth_spline(resmass_x, resmass_y, nknots=nknots, spar=spar)
+        resolution = fit(masses)
     return pd.Series(resolution, index=checked.index, name="resolution")
