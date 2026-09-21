@@ -1,58 +1,167 @@
-# enviPat
+# envipat
 
-`enviPat` is an R package for calculating isotope patterns and theoretical mass spectrometry envelopes. It implements fast algorithms for isotope fine structure calculations and tools for subsequent envelope generation, centroidization, and adduct handling.
+`envipat` is a Python port of the R package
+[`enviPat`](https://github.com/blosloos/enviPat): calculation of isotope
+fine structure patterns and theoretical mass spectrometry envelopes, plus
+tools for subsequent envelope generation, centroidization and instrument
+resolution interpolation.
+
+This port reproduces the R package's algorithms and results (isotope
+fine-structure calculation, Gaussian/Cauchy-Lorentz profile convolution,
+centroid/intensoid/valley detection, and a from-scratch reimplementation
+of R's smoothing-spline resolution interpolation) via a compiled C
+extension built from the same, unmodified core C sources the R package's
+own `.Call` entry points delegate to
+(`envipat._core.enviPat_py` -- see that module's docstring). Parity with
+the original R package is verified against fixtures frozen from real R
+output; see `tests/` and the port's GitLab issue history for the exact
+tolerances and any disclosed R-vs-Python divergences.
 
 ## Installation
 
-The stable release is available on CRAN:
+Not yet published to PyPI -- install from a source checkout:
 
-```r
-install.packages("enviPat")
+```bash
+git clone git@gitlab.eawag.ch:joboog/pyenvipat.git
+cd pyenvipat
+pip install .
 ```
 
-Development versions can be installed from GitHub using `devtools`:
+For development (editable install, so local edits take effect without
+reinstalling):
 
-```r
-# install.packages("devtools")
-devtools::install_github("blosloos/enviPat")
+```bash
+pip install -e .
 ```
 
-## Basic Example
+Requirements: Python >= 3.10, a C compiler (to build the bundled
+`envipat._core.enviPat_py` extension at install time), and `numpy` at
+build time. Runtime dependencies (`pandas`, `numpy`, `scipy`) are
+installed automatically.
 
-The following code generates isotope patterns for several chemical formulas and then convolutes them into theoretical envelopes:
+No R installation is required to install, import or use this package --
+the bundled reference data (`envipat.data`) ships as plain CSV/TXT files,
+and the compiled extension vendors the original algorithms' C sources
+directly. (R is only used by this repository's own developer-facing
+test/comparison tooling under `tools/`, to verify parity against the
+original package -- never by `envipat` itself.)
 
-```r
-library(enviPat)
+## Quickstart
 
-# load data sets bundled with the package
-data(isotopes)
-data(chemforms)
+The typical workflow mirrors the R package's own
+(`check_chemform` -> `isopattern` -> `envelope` -> `vdetect`): validate
+and normalize a chemical formula, calculate its isotope fine structure,
+convolute that into a theoretical instrument envelope, then detect
+centroids (or intensoids/valleys) in that envelope.
 
-# calculate isotope patterns for a subset of formulas
-pattern <- isopattern(
-  isotopes,
-  chemforms[1:5],
-  threshold = 0.1,
-  plotit = TRUE,
-  charge = FALSE,
-  algo = 2
+```python
+import envipat.data as data
+from envipat.formula import check_chemform
+from envipat.isopattern import isopattern
+from envipat.envelope import envelope
+from envipat.vdetect import vdetect
+
+# load the reference data bundled with the package
+isotopes = data.isotopes
+
+# validate/normalize formulas and get their monoisotopic mass
+checked = check_chemform(isotopes, ["C6H12O6", "C8H10N4O2"])
+#    warning new_formula  monoisotopic_mass
+# 0    False     C6H12O6          180.063388
+# 1    False   C8H10N4O2          194.080376
+
+# calculate isotope fine structure patterns
+pattern = isopattern(
+    isotopes,
+    checked["new_formula"],
+    threshold=0.1,
+    charge=False,
+    algo=2,
+)
+pattern["C6H12O6"].head()
+#           m/z   abundance  12C  13C  1H  2H  16O  18O  17O
+# 0  180.063388  100.000000    6    0  12   0    6    0    0
+# 1  181.066743    6.489437    5    1  12   0    6    0    0
+# 2  181.067605    0.228555    6    0  12   0    5    0    1
+# 3  181.069665    0.138016    6    0  11   1    6    0    0
+# 4  182.067634    1.232996    6    0  12   0    5    1    0
+
+# convert the patterns to envelope profiles at 1 million resolving power
+profiles = envelope(
+    pattern,
+    ppm=False,
+    dmz=0.0001,
+    frac=0.25,
+    env="Gaussian",
+    resolution=1e6,
 )
 
-# convert the patterns to envelopes at 1 million resolving power
-profiles <- envelope(
-  pattern,
-  ppm = FALSE,
-  dmz = 0.0001,
-  frac = 1/4,
-  env = "Gaussian",
-  resolution = 1e6,
-  plotit = TRUE
+# detect centroids in each envelope
+centro = vdetect(profiles, detect="centroid")
+centro["C6H12O6"]
+#           m/z   abundance
+# 0  180.063388  100.000000
+# 1  181.066743    6.525364
+# 2  181.067605    0.229828
+# 3  181.069665    0.138785
+# 4  182.067634    1.246678
+# 5  182.070098    0.177424
+```
+
+`isowrap` (`envipat.isowrap.isowrap`) composes the same three steps into
+one call for a batch of formulas, given a `resolution` value (or a
+per-formula sequence -- e.g. from `envipat.resolution.get_resolution`,
+this port's reimplementation of R's `getR`, when interpolating resolution
+from an instrument calibration curve such as one of
+`envipat.data.resolution_list`'s 31 curves, rather than passing a fixed
+value):
+
+```python
+from envipat.resolution import get_resolution
+from envipat.isowrap import isowrap
+
+resmass = data.resolution_list["Elite_R240000@400"]
+resolution = get_resolution(checked, resmass)  # per-formula, interpolated
+
+result = isowrap(
+    isotopes,
+    checked,
+    resolution=resolution,
+    threshold=0.1,
+    charge=1,
+    algo=2,
+    detect="centroid",
 )
 ```
+
+## Package layout
+
+- `envipat.data` -- lazily-loaded bundled reference datasets
+  (`isotopes`, `chemforms`, `adducts`, `resolution_list`).
+- `envipat.formula` -- `check_chemform`, `check_ded`, `mergeform`,
+  `subform`, `multiform`: chemical formula validation and algebra.
+- `envipat.isopattern` -- isotope fine structure calculation.
+- `envipat.envelope` -- profile convolution (Gaussian / Cauchy-Lorentz).
+- `envipat.vdetect` -- centroid / intensoid / valley detection.
+- `envipat.check_several` -- overlap screening between compounds' peaks.
+- `envipat.resolution` -- `get_resolution`, a from-scratch port of R's
+  `getR` smoothing-spline resolution interpolation.
+- `envipat.isowrap` -- convenience wrapper composing `isopattern`,
+  `envelope` and `vdetect` for a batch of formulas.
+- `envipat._core` -- the compiled C extension wrapping the vendored
+  algorithm core; not intended for direct use (see its own docstring).
+
+Every public function above has a full docstring (parameters, return
+shape, and where relevant, exactly how it reproduces -- or deliberately
+diverges from -- its R original); `help(...)` or your editor's docstring
+popup is the fastest way to explore.
 
 ## Citation
 
-If you use `enviPat` in your work, please cite:
+If you use `envipat`/`enviPat` in your work, please cite the original
+algorithm and R package:
 
-Loos, M.; Gerber, C.; Corona, F.; Hollender, J.; Singer, H. (2015). Accelerated isotope fine structure calculation using pruned transition trees, *Analytical Chemistry*, 87(11), 5738-5744. <https://doi.org/10.1021/acs.analchem.5b00941>
-
+Loos, M.; Gerber, C.; Corona, F.; Hollender, J.; Singer, H. (2015).
+Accelerated isotope fine structure calculation using pruned transition
+trees, *Analytical Chemistry*, 87(11), 5738-5744.
+<https://doi.org/10.1021/acs.analchem.5b00941>
