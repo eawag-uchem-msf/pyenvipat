@@ -14,6 +14,7 @@ license = "GPL-2.0-only"
 authors = [
     { name = "Martin Loos" },
     { name = "Christian Gerber" },
+    { name = "Johannes Boog", email = "johannesboog@yahoo.de" },
 ]
 maintainers = [
     { name = "Johannes Boog", email = "johannesboog@yahoo.de" },
