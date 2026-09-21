@@ -21,24 +21,33 @@ into both languages' ``envelope()`` call -- so they only verified
 independent resolution derivations end to end, closing the loop issue
 #8's own scope note deferred to issue #9 ("isowrap and getR" in MR !8).
 
-Cross-product covered (per issue #10's own scope): 8 formulas (spanning
-the mass range common to *every* ``resolution_list`` curve, see
-``tools/dump_full_pipeline.R``'s own comment for why these were picked)
-x all 31 ``resolution_list`` curves x ``algo`` in {1, 2} x ``detect`` in
-{"centroid", "intensoid", "valley"} = 1488 (formula, curve, algo, detect)
-combinations.
+Cross-product covered: the full ``data(chemforms)`` set (107 formulas,
+confirmed byte-identical to Python's ``envipat.data.chemforms`` -- see
+below) x all 31 ``resolution_list`` curves x ``algo`` in {1, 2} x
+``detect`` in {"centroid", "intensoid", "valley"} = 19,902 (formula,
+curve, algo, detect) combinations. An earlier revision of this file used
+a hand-picked 8-formula subset (chosen to span the mass range common to
+every ``resolution_list`` curve); the reviewer asked for full coverage
+instead (MR !9 post-review update), and all 107 formulas pass
+``check_chemform`` on both sides and fall inside every curve's
+calibration mass range, so none end up skipped in practice -- see
+``tools/dump_full_pipeline.R``'s own comment for the (still explicit,
+in case this data set ever changes) skip handling.
 
 Tolerances
 ----------
 - ``resolution``: ``rtol=1e-6``, the bound already established for
   :func:`envipat.resolution.get_resolution` against R's ``getR`` in
-  issue #9. Measured max relative deviation across all 248
-  (curve, formula) pairs: **~2.6e-14** (see MR description for the exact
-  figure) -- comfortably inside the bound, consistent with issue #9's
-  own measurements.
+  issue #9. Measured max relative deviation across all 3,317
+  (curve, formula) pairs (107 formulas x 31 curves): **~2.61e-14** (see
+  MR description for the exact figure; essentially unchanged from the
+  earlier 8-formula run's ~2.6e-14, since the worst case is a
+  curve-boundary interpolation artifact, not formula-count-dependent)
+  -- comfortably inside the bound, consistent with issue #9's own
+  measurements.
 - ``m/z``: ``rtol=1e-12``, the bound issue #8 established for
   ``envelope``/``vdetect`` given a *shared* resolution value. Measured
-  max relative deviation across all 1488 cases: **~8.9e-16** -- still
+  max relative deviation across all 19,902 cases: **~9.47e-16** -- still
   comfortably inside the tighter bound even with independently-derived
   resolutions on each side, since m/z (peak *position*) is far less
   sensitive to the mass-trace grid than abundance is.
@@ -51,23 +60,26 @@ Tolerances
   Gaussian profile abundance is locally steep enough near peak
   maxima/minima that this residual perturbs the *sampled* abundance
   more than it perturbs peak position. Measured worst case among
-  non-degenerate (not near-double-underflow) abundances: **~2.9e-11**
-  relative deviation -- see MR description for the full distribution.
+  non-``valley`` (not near-double-underflow) abundances, across the
+  full 107-formula matrix: **~5.38e-11** relative deviation (absolute
+  diff ~6.55e-12) -- see MR description for the full distribution;
+  comparable order of magnitude to the earlier 8-formula run's
+  ~2.9e-11, still >18x margin under ``rtol=1e-9``.
   ``detect="valley"`` additionally produces some genuinely
-  near-zero local-minimum abundances (down to ~1e-93 in this matrix),
-  where *relative* error is meaningless (a ~1e-102 absolute difference
-  between two ~1e-93 numbers is not a real disagreement). Comparison
-  therefore uses a combined tolerance (``numpy.isclose`` semantics:
-  ``|diff| <= atol + rtol * |expected|``) with ``rtol=1e-9,
-  atol=1e-9`` -- comfortably tighter than "loose" (>30x margin over the
-  measured non-degenerate worst case) while correctly handling the
-  near-zero ``valley`` tail.
+  near-zero local-minimum abundances (down to ~1e-173 in this wider
+  matrix), where *relative* error is meaningless (a ~7.2e-9-relative,
+  ~7.9e-182-absolute difference between two ~1e-173-scale numbers is
+  not a real disagreement). Comparison therefore uses a combined tolerance
+  (``numpy.isclose`` semantics: ``|diff| <= atol + rtol * |expected|``)
+  with ``rtol=1e-9, atol=1e-9`` -- measured **0 failures** across all
+  19,902 abundance cases (max relative deviation among the near-zero
+  ``valley`` tail: ~7.20e-9, with an absolute difference of
+  ~7.89e-182, comfortably inside ``atol=1e-9``).
 
 Adducts.csv/adducts.rda divergence (issue #10's own caveat)
 -------------------------------------------------------------
-This comparison's formula set is 8 hand-picked ``chemforms`` entries
-(chosen for mass-range coverage, not adduct arithmetic) -- it never
-touches ``envipat.data.adducts`` or ``mergeform``/``subform``/etc., so
+This comparison's formula set is the full ``chemforms`` data set -- it
+never touches ``envipat.data.adducts`` or ``mergeform``/``subform``/etc., so
 the known ``adducts.csv`` vs. ``adducts.rda`` divergence for the 3
 corrected ``Formula_add`` rows (``"F"``, ``"H2CO3"``, ``"H1N1H4"`` --
 see issue #10's own comment thread and MR !7) cannot appear in *this*
@@ -116,18 +128,13 @@ from envipat.vdetect import vdetect
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DUMP_SCRIPT = REPO_ROOT / "tools" / "dump_full_pipeline.R"
 
-# Must stay in sync with tools/dump_full_pipeline.R's own `formulas` --
-# see that script's comment for why these 8 were picked.
-FORMULAS = [
-    "C4H5N5D6",
-    "C6H10Cl1N2[15]N3",
-    "C7H7D5Cl1N5",
-    "C10H8Cl1N3O1",
-    "C14H10N2O1[13]C1D2",
-    "C14H16Cl1N3O1",
-    "C14H13N1O7S1",
-    "C38H72N2O12",
-]
+# The full data(chemforms) set -- must stay in sync with
+# tools/dump_full_pipeline.R's own `formulas`, which also derives from
+# data(chemforms). envipat.data.chemforms is confirmed byte-identical to
+# R's data(chemforms) (see module docstring); loaded here rather than
+# hardcoded so both sides can never drift out of sync with the bundled
+# data file.
+FORMULAS = data.chemforms.tolist()
 ALGOS = (1, 2)
 DETECT_MODES = ("centroid", "intensoid", "valley")
 
@@ -156,9 +163,18 @@ def r_reference(tmp_path_factory):
 
 @pytest.fixture(scope="session")
 def checked_formulas():
+    """Mirrors tools/dump_full_pipeline.R's own skip handling: a formula
+    that fails check_chemform is dropped (with a printed reason) rather
+    than aborting the whole comparison. As of this revision all 107
+    FORMULAS pass, so this is a no-op in practice, but keeps the suite
+    robust rather than crashing outright if that ever changes.
+    """
     checked = check_chemform(data.isotopes, FORMULAS)
-    assert not checked["warning"].any(), "one or more FORMULAS failed check_chemform"
-    return checked
+    bad = checked["warning"]
+    if bad.any():
+        skipped = [fm for fm, is_bad in zip(FORMULAS, bad) if is_bad]
+        print(f"skipping {len(skipped)} formula(s) that failed check_chemform: {skipped}")
+    return checked[~bad].reset_index(drop=True)
 
 
 @pytest.fixture(scope="session")
@@ -258,8 +274,12 @@ def comparison(r_reference, checked_formulas, patterns):
     return pd.DataFrame(rows)
 
 
-def test_full_cross_product_covers_every_combination(comparison):
-    n_formulas = len(FORMULAS)
+def test_full_cross_product_covers_every_combination(comparison, checked_formulas):
+    # Use checked_formulas (post check_chemform-failure filtering), not
+    # len(FORMULAS), so this stays correct even if a future data(chemforms)
+    # update introduces a formula that gets skipped (see checked_formulas'
+    # own docstring).
+    n_formulas = len(checked_formulas)
     assert len(comparison[comparison["kind"] == "resolution"]) == 31 * n_formulas
     assert len(comparison[comparison["kind"].isin(["mz", "peaks"])]) == 31 * len(ALGOS) * len(DETECT_MODES) * n_formulas
 

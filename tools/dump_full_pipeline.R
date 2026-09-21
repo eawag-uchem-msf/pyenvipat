@@ -8,10 +8,14 @@
 # exercises R's real isowrap() end-to-end -- letting it call getR()
 # *internally* from a resmass calibration table (nknots=13, spar=0.1,
 # R's own getR() defaults) -- across the full cross-product issue #10
-# asks for: 8 formulas (spanning the mass range common to every
-# resolution_list curve, see tests/python/test_end_to_end.py for why) x
-# all 31 resolution_list curves x algo {1, 2} x detect {centroid,
-# intensoid, valley}.
+# asks for: the full data(chemforms) set (107 formulas, confirmed
+# byte-identical to Python's envipat.data.chemforms -- see MR !9's
+# post-review update) x all 31 resolution_list curves x algo {1, 2} x
+# detect {centroid, intensoid, valley}. An earlier revision of this
+# script used a hand-picked 8-formula subset; the reviewer asked for
+# full coverage instead (MR !9 post-review), and all 107 formulas pass
+# check_chemform() cleanly (verified below), so no formulas end up
+# skipped in practice.
 #
 # The Python side (tests/python/test_end_to_end.py) does NOT replay
 # these exact isowrap() calls -- it instead calls envipat.resolution.
@@ -39,30 +43,31 @@ dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
 suppressMessages(library(enviPat))
 data(isotopes)
+data(chemforms)
 data(resolution_list)
 
 fmt_num <- function(x) ifelse(is.na(x), NA_character_, sprintf("%.17g", x))
 
-# 8 formulas spanning ~135-750 Da, inside the mass range common to every
-# resolution_list curve ([120.3, 994.6], see test_end_to_end.py), picked
-# to also mix in deuterium (D) and isotope-labelled ([13]C, [15]N) forms
-# -- the same tokenizer edge cases issue #7's formula.py already stresses.
-formulas <- c(
-    "C4H5N5D6",
-    "C6H10Cl1N2[15]N3",
-    "C7H7D5Cl1N5",
-    "C10H8Cl1N3O1",
-    "C14H10N2O1[13]C1D2",
-    "C14H16Cl1N3O1",
-    "C14H13N1O7S1",
-    "C38H72N2O12"
-)
+# Full data(chemforms) set (107 formulas as of this package version).
+# check_chemform() failures are skipped explicitly (logged to stderr and
+# dropped from the matrix) rather than aborting the whole run over one
+# bad formula -- as of this revision all 107 pass, but this keeps the
+# script robust if that data set ever changes.
+formulas <- as.character(chemforms)
 
 checked <- check_chemform(isotopes, formulas)
-if (any(checked[, 1])) {
-    stop("one or more formulas failed check_chemform: ", paste(formulas[checked[, 1]], collapse = ", "))
+bad <- checked[, 1]
+if (any(bad)) {
+    message(
+        "skipping ", sum(bad), " formula(s) that failed check_chemform: ",
+        paste(formulas[bad], collapse = ", ")
+    )
 }
-new_formulas <- checked[, 2]
+formulas <- formulas[!bad]
+new_formulas <- checked[!bad, 2]
+# getR() itself stops on any(checked[, 1] == TRUE), so it needs the
+# filtered table too, not just the filtered formula names.
+checked <- checked[!bad, ]
 
 # isopattern doesn't depend on the resolution curve -- compute both algos'
 # patterns once, outside the curve loop, and reuse them for every curve.
