@@ -10,12 +10,13 @@ Technology) by Martin Loos and Christian Gerber:
   Transition Trees", Analytical Chemistry.
   doi:10.1021/acs.analchem.5b00941
 
-Copyright (C) 2012-2015 EAWAG and the original algorithm authors
-(C source algorithm cores; see per-file headers under the vendored C
-sources for original creation years and copyright statements, kept
-verbatim).
+Copyright (C) 2012-2015 Eawag (original R package and C algorithm
+cores, written by Martin Loos and Christian Gerber as Eawag employees;
+see per-file headers under the vendored C sources for original creation
+years and copyright statements, kept verbatim).
 
-Copyright (C) 2026 Johannes Boog (Python port).
+Copyright (C) 2026 Eawag (Python port, written by Johannes Boog as an
+Eawag employee; see AUTHORS).
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2, as
