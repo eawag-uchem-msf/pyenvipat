@@ -10,9 +10,16 @@ entry points delegate to -- see ``R/isopattern.R`` and
 Result shape
 ------------
 Returns ``dict[str, pandas.DataFrame | str]`` keyed by (stringified) input
-formula, matching R's ``pattern`` list (named by ``as.character(chemforms)``,
-duplicate formulas simply overwrite -- like R's ``names()<-``, not an
-error). Each value is a DataFrame with columns ``"m/z"``, ``"abundance"``,
+formula, matching R's ``pattern`` list (named by ``as.character(chemforms)``).
+Unlike R -- where a duplicate name in ``names()<-`` simply overwrites the
+earlier list entry, silently discarding its result -- this port raises
+``ValueError`` as soon as a duplicate formula is detected in the input,
+naming every duplicated formula (not just the first). A dict keyed by
+formula cannot represent two results for the same formula anyway, so
+silently keeping only the last one would be a silent data-loss bug in
+Python even though it mirrors R's own list-naming semantics; see MR
+description for this decision. Each value is a DataFrame with columns
+``"m/z"``, ``"abundance"``,
 then one integer column per isotope actually present in that formula's
 peaks (e.g. ``"12C"``, ``"13C"``, ``"1H"``, ...), in the same order
 ``_core`` returns them.
@@ -36,6 +43,7 @@ from __future__ import annotations
 
 import sys
 import warnings
+from collections import Counter
 from collections.abc import Sequence
 
 import numpy as np
@@ -136,6 +144,13 @@ def isopattern(
         Keyed by (stringified) formula; see module docstring for the
         per-formula value shapes, including the ``"error"`` sentinel.
 
+    Raises
+    ------
+    ValueError
+        If ``chemforms`` contains the same (stringified) formula more
+        than once -- see module docstring; this diverges from R, which
+        silently keeps only the last duplicate's result.
+
     Notes
     -----
     R's ``plotit`` argument (base-graphics stick plot per formula) is
@@ -157,6 +172,14 @@ def isopattern(
     if isinstance(chemforms, str):
         chemforms = [chemforms]
     chemforms = [str(f) for f in chemforms]
+
+    duplicates = sorted(f for f, n in Counter(chemforms).items() if n > 1)
+    if duplicates:
+        raise ValueError(
+            "duplicate formula(s) in chemforms (each formula must be "
+            "unique, since results are keyed by formula): "
+            + ", ".join(duplicates)
+        )
 
     charges = _as_charge_list(charge, len(chemforms))
 

@@ -334,6 +334,26 @@ def test_isopattern_matches_golden(case_id):
             )
 
 
+def test_isopattern_duplicate_formula_raises():
+    # Regression test for reviewer decision on MR !8: a duplicate input
+    # formula must raise, not silently overwrite the earlier dict entry
+    # (see envipat.isopattern's module/Raises docstring).
+    with pytest.raises(ValueError, match="C1H4"):
+        isopattern(ISOTOPES, ["C1H4", "C2H6", "C1H4"], threshold=0.1, verbose=False)
+
+
+def test_isopattern_multiple_duplicate_formulas_all_named():
+    # All duplicated formulas must be named in the error, not just the
+    # first one encountered.
+    with pytest.raises(ValueError) as excinfo:
+        isopattern(
+            ISOTOPES, ["C1H4", "C2H6", "C1H4", "C2H6", "C3H8"], threshold=0.1, verbose=False
+        )
+    assert "C1H4" in str(excinfo.value)
+    assert "C2H6" in str(excinfo.value)
+    assert "C3H8" not in str(excinfo.value)
+
+
 # --------------------------------------------------------------------- #
 # envelope
 # --------------------------------------------------------------------- #
