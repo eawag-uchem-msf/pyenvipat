@@ -1,10 +1,14 @@
-# envipat
+# pyEnvipat
 
-`envipat` is a Python port of the R package
-[`enviPat`](https://github.com/blosloos/enviPat): calculation of isotope
-fine structure patterns and theoretical mass spectrometry envelopes, plus
-tools for subsequent envelope generation, centroidization and instrument
-resolution interpolation.
+Python port of the R package [`enviPat`](https://github.com/blosloos/enviPat)
+(Loos, Gerber et al., EAWAG), licensed GPL-2.0-only, same as upstream --
+calculation of isotope fine structure patterns and theoretical mass
+spectrometry envelopes, plus tools for subsequent envelope generation,
+centroidization and instrument resolution interpolation.
+
+The distributed package is `pyEnvipat`; the importable module keeps the
+original name, `envipat` (`import envipat as ep`), matching the R
+package's own name.
 
 This port reproduces the R package's algorithms and results (isotope
 fine-structure calculation, Gaussian/Cauchy-Lorentz profile convolution,
@@ -166,3 +170,11 @@ Loos, M.; Gerber, C.; Corona, F.; Hollender, J.; Singer, H. (2015).
 Accelerated isotope fine structure calculation using pruned transition
 trees, *Analytical Chemistry*, 87(11), 5738-5744.
 <https://doi.org/10.1021/acs.analchem.5b00941>
+
+## License
+
+GPL-2.0-only, same as the original R package -- see [`LICENSE`](LICENSE).
+This is a derivative work of the original `enviPat` R package by Martin
+Loos and Christian Gerber (EAWAG); see [`AUTHORS`](AUTHORS) for full
+attribution and [`NOTICE`](NOTICE) for how the port relates to the
+original C sources it vendors.
