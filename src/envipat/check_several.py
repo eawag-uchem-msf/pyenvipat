@@ -34,10 +34,9 @@ output table.
 
 This is a plain typo (a copy-paste of the ``ppm==FALSE`` block's four
 updates with one stray comma), not a deliberate-but-odd design choice
-worth preserving for behavioural parity (contrast this with
-``check_ded``'s intentional D/H asymmetry in ``envipat.formula``, which
-*is* preserved). Reproducing it would make ``ppm=True`` unusable in
-Python for the one scenario it is meant to detect, for no compatibility
+worth preserving for behavioural parity. Reproducing it would make
+``ppm=True`` unusable in Python for the one scenario it is meant to
+detect, for no compatibility
 benefit -- nothing in the R package or its docs relies on this branch
 raising. This port removes the extra comma so the ``ppm=True`` branch is
 symmetric with ``ppm=False`` and returns a normal result instead of
