@@ -436,6 +436,24 @@ def pattern_no_overlap():
     return isopattern(ISOTOPES, POOL3, threshold=0.1, verbose=False)
 
 
+def _parse_golden_check_several_warning(s: str) -> bool:
+    """R's golden ``"warning"`` column holds ``""``/``"TRUE"`` strings;
+    envipat.check_several reshapes this to native bool (see its module
+    docstring) -- ``""`` means "no overlap" i.e. False, not NA."""
+    assert s in ("", "TRUE")
+    return s == "TRUE"
+
+
+def _parse_golden_check_several_index_list(s: str) -> list[int]:
+    """R's golden ``"to?"``/``"peak_number"`` columns hold ``"/"``-
+    terminated index-list strings (e.g. ``"2/2/2/"``, or ``""`` for no
+    overlap); envipat.check_several reshapes these to native
+    ``list[int]`` (``[]`` for no overlap) -- see its module docstring."""
+    if s == "":
+        return []
+    return [int(x) for x in s.split("/") if x != ""]
+
+
 @pytest.mark.parametrize("case_id", sorted(CHECK_SEVERAL_CASES))
 def test_check_several_matches_golden(case_id, pattern_overlap, pattern_no_overlap):
     row = CHECK_SEVERAL_CASES[case_id]
@@ -455,12 +473,25 @@ def test_check_several_matches_golden(case_id, pattern_overlap, pattern_no_overl
         # instead returns a normal, symmetric result.
         result = check_several(pattern, dmz=dmz, ppm=ppm)
         assert list(result.columns) == ["compound", "warning", "to?", "peak_number"]
-        assert (result["warning"] == "TRUE").any()
+        assert pd.api.types.is_bool_dtype(result["warning"])
+        assert result["warning"].any()
         return
 
     result = check_several(pattern, dmz=dmz, ppm=ppm)
-    expected = pd.read_csv(
+    assert pd.api.types.is_bool_dtype(result["warning"])
+    assert result["to?"].map(lambda v: isinstance(v, list)).all()
+    assert result["peak_number"].map(lambda v: isinstance(v, list)).all()
+
+    raw = pd.read_csv(
         GOLDEN / "check_several" / row["output_file"], keep_default_na=False, dtype=str
+    )
+    expected = pd.DataFrame(
+        {
+            "compound": raw["compound"],
+            "warning": raw["warning"].map(_parse_golden_check_several_warning),
+            "to?": raw["to?"].map(_parse_golden_check_several_index_list),
+            "peak_number": raw["peak_number"].map(_parse_golden_check_several_index_list),
+        }
     )
     pd.testing.assert_frame_equal(
         result.reset_index(drop=True), expected.reset_index(drop=True), check_dtype=False

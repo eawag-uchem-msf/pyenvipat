@@ -48,15 +48,34 @@ rather than silently diverging from R.
 Result shape
 ------------
 Returns a :class:`pandas.DataFrame` with columns ``"compound"``,
-``"warning"``, ``"to?"`` and ``"peak_number"`` -- matching R's
-``data.frame(names(pattern), get1, get2, get3)`` column-for-column,
-*including* R's own choice to make ``warning`` a character column
-(values ``""`` or the literal string ``"TRUE"``, not a Python/NumPy
-bool), and ``"to?"``/``"peak_number"`` strings such as ``"2/2/2/"`` (a
-``"/"``-terminated list of 1-based row numbers / peak indices, R-style,
-not a Python list) -- so that a caller diffing this against R's own
-``data.frame`` output (e.g. against the golden fixtures) sees the same
-strings, not a reshaped equivalent.
+``"warning"``, ``"to?"`` and ``"peak_number"``, corresponding
+column-for-column to R's ``data.frame(names(pattern), get1, get2,
+get3)`` -- but reshaped to native Python/pandas types rather than R's
+own string-serialization idioms (per reviewer decision on MR !8; see MR
+description):
+
+- ``"compound"``: ``str`` (unchanged -- already native on both sides).
+- ``"warning"``: ``bool``, not R's character column of ``""``/``"TRUE"``.
+  In R's original, ``""`` isn't a missing/NA marker -- ``get1`` is
+  initialized to ``""`` for every compound and only ever reassigned to
+  the literal string ``"TRUE"`` when an overlap involving that compound
+  is found, so ``""`` unambiguously means "no overlap found" i.e.
+  ``False``, not "unknown"/``NA``. Hence a plain ``bool`` column
+  (``True``/``False``), not a nullable one.
+- ``"to?"`` / ``"peak_number"``: ``list[int]`` per row (empty list, not
+  ``""``, when there is no overlap), not R's ``"/"``-terminated string
+  of 1-based row numbers / peak indices (e.g. ``"2/2/2/"`` -> ``[2, 2,
+  2]``). These are always non-negative integer indices (1-based, R-style,
+  preserved as-is rather than renumbered to 0-based, since they index
+  into ``pattern`` / a compound's own peak table the same way R's did),
+  so a list of Python ``int`` is the natural, idiomatic shape -- not
+  parsed floats, and not re-encoded as another delimited string.
+
+A caller diffing this against R's own ``data.frame`` output (e.g. the
+golden fixtures, which are frozen from R and still hold the original
+``""``/``"TRUE"`` and ``"2/2/2/"`` strings) must parse those fixture
+strings into the same native types before comparing -- see
+``tests/python/test_pipeline.py``'s ``check_several`` test.
 """
 
 from __future__ import annotations
@@ -92,9 +111,10 @@ def check_several(pattern: Mapping, dmz: float, ppm: bool = True) -> pd.DataFram
     Returns
     -------
     pandas.DataFrame
-        Columns ``"compound"``, ``"warning"`` (``""`` or ``"TRUE"``),
-        ``"to?"`` and ``"peak_number"`` -- see module docstring for the
-        exact string format of the last two.
+        Columns ``"compound"`` (str), ``"warning"`` (bool), ``"to?"``
+        (list[int]) and ``"peak_number"`` (list[int]) -- see module
+        docstring for what each represents and why these are the native
+        types, rather than R's own string-serialized column values.
     """
     pattern = dict(pattern)
 
@@ -128,9 +148,9 @@ def check_several(pattern: Mapping, dmz: float, ppm: bool = True) -> pd.DataFram
     getit2_arr = getit2_arr[order]
     getit3_arr = getit3_arr[order]
 
-    get1 = [""] * n_compounds
-    get2 = [""] * n_compounds
-    get3 = [""] * n_compounds
+    get1 = [False] * n_compounds  # warning: True iff this compound overlaps another
+    get2: list[list[int]] = [[] for _ in range(n_compounds)]  # to?: 1-based compound indices
+    get3: list[list[int]] = [[] for _ in range(n_compounds)]  # peak_number: 1-based peak indices
 
     for k in range(1, len(getit1_arr)):
         left, right = k - 1, k
@@ -145,16 +165,26 @@ def check_several(pattern: Mapping, dmz: float, ppm: bool = True) -> pd.DataFram
 
         i_left = int(getit1_arr[left])
         i_right = int(getit1_arr[right])
-        get1[i_right] = "TRUE"
-        get1[i_left] = "TRUE"
-        get2[i_right] += f"{i_left + 1}/"
-        get2[i_left] += f"{i_right + 1}/"
-        get3[i_right] += f"{int(getit3_arr[left])}/"
-        get3[i_left] += f"{int(getit3_arr[right])}/"
+        get1[i_right] = True
+        get1[i_left] = True
+        get2[i_right].append(i_left + 1)
+        get2[i_left].append(i_right + 1)
+        get3[i_right].append(int(getit3_arr[left]))
+        get3[i_left].append(int(getit3_arr[right]))
 
-    if any(w != "" for w in get1):
+    if any(get1):
         print("Overlaps detected!", file=sys.stderr)
 
     return pd.DataFrame(
-        {"compound": names, "warning": get1, "to?": get2, "peak_number": get3}
+        {
+            "compound": names,
+            "warning": pd.array(get1, dtype="bool"),
+            # dtype=object (not the default list->2D-ndarray inference)
+            # matters here: if every row happens to hold a same-length
+            # list (e.g. all empty, or all length 2), naive conversion
+            # would collapse this into a 2D array instead of a Series of
+            # per-row list objects.
+            "to?": pd.Series(get2, dtype=object),
+            "peak_number": pd.Series(get3, dtype=object),
+        }
     )
