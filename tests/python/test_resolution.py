@@ -40,7 +40,19 @@ def _load_golden_cases():
     out = []
     for _, row in cases.iterrows():
         curve = _CURVE_RE.search(row["params"]).group(1)
-        df = pd.read_csv(GOLDEN_DIR / row["output_file"])
+        # float_precision="round_trip": pandas' default C float parser does
+        # not always round-trip the 17-significant-digit strings these
+        # fixtures were written with bit-exactly (same class of bug fixed
+        # in envipat.data (#7) for isotopes.csv/adducts.csv). Without this,
+        # two curves' (Sciex_QTOFX500R_R25000@200,
+        # Agilent_QTOF6550_low_extended_highSens_R25000@200) own boundary
+        # mass -- parsed here from this fixture file -- comes out 1 ULP
+        # higher than the identical value parsed from resolution_list.csv
+        # via envipat.data (which already uses round_trip), so
+        # get_resolution's own in-range check spuriously rejects the exact
+        # boundary mass. Discovered while building issue #10's end-to-end
+        # comparison.
+        df = pd.read_csv(GOLDEN_DIR / row["output_file"], float_precision="round_trip")
         mass_grid = df["mass"].to_numpy(dtype=float)
         for col in df.columns:
             if col == "mass":
