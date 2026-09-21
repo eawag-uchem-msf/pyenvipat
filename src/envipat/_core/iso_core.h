@@ -2,6 +2,11 @@
 //  iso_core.h
 //  enviPat
 //
+//  Copyright (c) 2014 cg. All rights reserved.
+//  Extracted and modified from main.c in 2026 for the Python port
+//  (pyEnvipat); distributed under the GNU GPL v2 (GPL-2.0-only), same
+//  as the original R package. See LICENSE, AUTHORS and NOTICE.
+//
 //  Pure-C core for the 5 registered .Call entry points (see
 //  src/enviPat_init.c). No SEXP / PROTECT / Rprintf / R.h in this file or
 //  in iso_core.c -- this is the boundary the R SEXP wrappers in main.c call
