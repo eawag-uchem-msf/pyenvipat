@@ -55,23 +55,20 @@ convolute that into a theoretical instrument envelope, then detect
 centroids (or intensoids/valleys) in that envelope.
 
 ```python
+import envipat as ep
 import envipat.data as data
-from envipat.formula import check_chemform
-from envipat.isopattern import isopattern
-from envipat.envelope import envelope
-from envipat.vdetect import vdetect
 
 # load the reference data bundled with the package
 isotopes = data.isotopes
 
 # validate/normalize formulas and get their monoisotopic mass
-checked = check_chemform(isotopes, ["C6H12O6", "C8H10N4O2"])
+checked = ep.check_chemform(isotopes, ["C6H12O6", "C8H10N4O2"])
 #    warning new_formula  monoisotopic_mass
 # 0    False     C6H12O6          180.063388
 # 1    False   C8H10N4O2          194.080376
 
 # calculate isotope fine structure patterns
-pattern = isopattern(
+pattern = ep.isopattern(
     isotopes,
     checked["new_formula"],
     threshold=0.1,
@@ -87,7 +84,7 @@ pattern["C6H12O6"].head()
 # 4  182.067634    1.232996    6    0  12   0    5    1    0
 
 # convert the patterns to envelope profiles at 1 million resolving power
-profiles = envelope(
+profiles = ep.envelope(
     pattern,
     ppm=False,
     dmz=0.0001,
@@ -97,7 +94,7 @@ profiles = envelope(
 )
 
 # detect centroids in each envelope
-centro = vdetect(profiles, detect="centroid")
+centro = ep.vdetect(profiles, detect="centroid")
 centro["C6H12O6"]
 #           m/z   abundance
 # 0  180.063388  100.000000
@@ -117,13 +114,10 @@ from an instrument calibration curve such as one of
 value):
 
 ```python
-from envipat.resolution import get_resolution
-from envipat.isowrap import isowrap
-
 resmass = data.resolution_list["Elite_R240000@400"]
-resolution = get_resolution(checked, resmass)  # per-formula, interpolated
+resolution = ep.get_resolution(checked, resmass)  # per-formula, interpolated
 
-result = isowrap(
+result = ep.isowrap(
     isotopes,
     checked,
     resolution=resolution,
@@ -135,6 +129,13 @@ result = isowrap(
 ```
 
 ## Package layout
+
+The public pipeline functions listed below are also re-exported at the
+top level (`import envipat as ep; ep.check_chemform(...)`, etc. -- see
+the Quickstart above); the bundled datasets stay a submodule import
+(`import envipat.data as data`) since `envipat.data` loads them lazily
+on first attribute access, and re-exporting them at the top level would
+defeat that.
 
 - `envipat.data` -- lazily-loaded bundled reference datasets
   (`isotopes`, `chemforms`, `adducts`, `resolution_list`).
