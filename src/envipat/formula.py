@@ -32,33 +32,39 @@ parses each formula once with a small recursive-descent tokenizer
   ("implicit 1 insertion");
 - ``(...)N`` groups multiply every element count inside them by N, with
   correct nesting (``"((CH2)2O)3"`` -> ``"C6H12O3"``);
-- ``D`` is substituted for ``[2]H`` (a literal text substitution, matching
-  R's ``gsub("D", "[2]H", ...)``) in ``check_ded``'s *deduct* formula,
-  ``mergeform`` and ``subform``; ``check_ded``'s *formula1* substitutes
-  ``D`` for plain ``H`` instead -- a deliberate asymmetry present in R
-  (see ``R/check_ded.R`` lines 29 vs 87) that this port preserves rather
-  than "fixing" (see issue #14 for that separate, bigger decision).
+- ``D`` is substituted for ``[2]H`` (a literal text substitution) in all
+  five functions, consistently: ``check_chemform`` (both at the top level
+  and inside a ``(...)`` group), ``check_ded`` (both its *deduct* and its
+  *formulas* argument), ``mergeform``, ``subform`` and ``multiform``.
   Every one of these substitutions uses a negative lookahead
   (``D(?![a-z])``) so as not to clobber a longer symbol starting with
-  "D" -- e.g. "Dy" (dysprosium, present in ``isotopes``). R's own
-  ``gsub("D", ...)`` calls lack this guard in ``check_ded``/``mergeform``/
-  ``subform`` and silently corrupt any formula containing "Dy" there
-  (only R's ``multiform`` guards against it); this port applies the same
-  guard everywhere a ``D`` substitution happens, which is a bug fix, not
-  a behavioural port decision -- flagged as a divergence from R like the
-  ``adducts.csv`` fix. ``check_chemform`` itself performs
-  *no* top-level D substitution: ``"D"`` is looked up directly as its own
-  element symbol in ``isotopes`` (it is present there, with abundance 1),
-  so e.g. ``check_chemform(isotopes, "D2O1")`` reports formula ``"D2O1"``
-  (not ``"[2]H2O1"``) and a very slightly different mass than the
-  chemically-equivalent ``"[2]H2O1"``, because the ``D`` and ``[2]H``
-  rows of ``isotopes`` carry mass values that differ in their last
-  digit. This is reproduced exactly, not smoothed over. There is one
-  exception: R's ``check_chemform`` *does* apply the ``D`` -> ``[2]H``
-  substitution inside its internal bracket-multiplier helper, so a
-  formula like ``"(D2)3"`` normalizes to ``"[2]H6"``, not ``"D6"`` -- an
-  inconsistency in the R original that is reproduced here too (see the
-  ``_in_group`` flag inside ``_parse_nested`` below).
+  "D" -- e.g. "Dy" (dysprosium, present in ``isotopes``).
+
+  This is a deliberate, disclosed divergence from R (issue #14): R's
+  five functions disagree with each other about ``D`` --
+  ``check_chemform``'s top level looks ``"D"`` up directly as its own
+  ``isotopes`` row instead of substituting it (so
+  ``check_chemform(isotopes, "D2O1")`` reports formula ``"D2O1"``, not
+  ``"[2]H2O1"``, with a very slightly different mass, because the ``D``
+  and ``[2]H`` rows of ``isotopes`` carry mass values differing in their
+  last digit), only its internal bracket-multiplier helper substitutes
+  ``D`` -> ``[2]H`` (so R's own ``check_chemform`` already normalizes
+  ``"(D2)3"`` to ``"[2]H6"``, not ``"D6"``); and R's ``check_ded``
+  substitutes ``D`` -> ``[2]H`` in ``deduct`` but ``D`` -> plain ``H`` in
+  ``formula1`` (``R/check_ded.R`` lines 29 vs 87). Issue #14 resolved
+  this by canonicalizing: ``D`` now means deuterium (``[2]H``)
+  everywhere in this Python port, in every function and every argument.
+  R's own ``.R`` sources are intentionally left unchanged (not in scope
+  for #14), so this is a real, permanent behavioural difference for any
+  formula containing a literal ``D`` -- not just a bug fix like the "Dy"
+  guard below.
+
+  Separately, R's own ``gsub("D", ...)`` calls lack the "Dy" guard above
+  in ``check_ded``/``mergeform``/``subform`` and silently corrupt any
+  formula containing "Dy" there (only R's ``multiform`` guards against
+  it); this port applies the guard everywhere a ``D`` substitution
+  happens, which -- unlike the canonicalization above -- *is* a plain bug
+  fix, flagged as a divergence from R like the ``adducts.csv`` fix.
 - ``check_chemform`` merges repeated elements in a formula, summing their
   counts and keeping the position of first occurrence (``"C2C3"`` ->
   ``"C5"``). ``mergeform`` does *not* do this for you: a repeated element
@@ -250,11 +256,12 @@ def _parse_nested(formula: str) -> list[tuple[str, int]]:
         while pos < n and formula[pos].islower():
             pos += 1
         symbol = prefix + formula[start:pos]
-        # R's internal bracket-multiplier helper (multif) substitutes
-        # D -> [2]H before tokenizing; the top-level disassembly does not.
-        # Reproduced verbatim: only elements parsed *inside* a round-bracket
-        # group go through this substitution.
-        if _in_group[0] and symbol == "D":
+        # D -> [2]H, unconditionally (issue #14): unlike R, which only
+        # substitutes inside a round-bracket group at the top level (see
+        # module docstring), this port canonicalizes D to deuterium
+        # everywhere, so top-level and in-group formulas are treated the
+        # same way.
+        if symbol == "D":
             symbol = "[2]H"
         count = parse_count()
         return symbol, count
@@ -268,10 +275,7 @@ def _parse_nested(formula: str) -> list[tuple[str, int]]:
             ch = formula[pos]
             if ch == "(":
                 pos += 1
-                was_in_group = _in_group[0]
-                _in_group[0] = True
                 inner = parse_group(top_level=False)
-                _in_group[0] = was_in_group
                 if pos >= n or formula[pos] != ")":
                     raise _FormulaSyntaxError(f"unbalanced '(' in {formula!r}")
                 pos += 1
@@ -287,7 +291,6 @@ def _parse_nested(formula: str) -> list[tuple[str, int]]:
             raise _FormulaSyntaxError(f"empty formula body in {formula!r}")
         return terms
 
-    _in_group = [False]
     terms = parse_group(top_level=True)
     if pos != n:
         raise _FormulaSyntaxError(f"unbalanced ')' in {formula!r}")
@@ -431,13 +434,13 @@ def check_ded(formulas, deduct) -> list:
     ``deduct`` must already be fully counted, unbracketed formulas (as
     produced by :func:`check_chemform`).
 
-    Note the intentional asymmetry preserved from R: within ``deduct``,
-    ``D`` is substituted for ``[2]H`` before tokenizing; within each of
-    ``formulas``, ``D`` is instead substituted for plain ``H`` (see
-    ``R/check_ded.R`` lines 29 and 87) -- so e.g.
-    ``check_ded(["C4D10"], "C4H10")`` reports ``False`` (not contained is
-    False, i.e. it *is* considered contained), because the formula's "D"
-    is read as ordinary H here, not as deuterium.
+    ``D`` is substituted for ``[2]H`` before tokenizing, in both
+    ``deduct`` and each of ``formulas``. R's original substitutes
+    ``D`` -> ``[2]H`` in ``deduct`` but ``D`` -> plain ``H`` in
+    ``formula1`` (``R/check_ded.R`` lines 29 vs 87); this port
+    canonicalizes both sides to deuterium instead (issue #14), so e.g.
+    ``check_ded(["C4D10"], "C4H10")`` now reports ``True`` (deduct's
+    ``H10`` is *not* contained in the formula's ``[2]H10``), unlike R.
 
     Parameters
     ----------
@@ -461,7 +464,7 @@ def check_ded(formulas, deduct) -> list:
 
     out: list[bool] = []
     for formula in formulas:
-        formula_str = _D_NOT_BEFORE_LOWER_RE.sub("H", str(formula))
+        formula_str = _D_NOT_BEFORE_LOWER_RE.sub("[2]H", str(formula))
         formula_counts = _merge_counts(_parse_flat(formula_str))
         contained = all(
             symbol in formula_counts and formula_counts[symbol] >= count
