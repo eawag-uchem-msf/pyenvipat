@@ -4,79 +4,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Package Overview
 
-**enviPat** is an R package (v2.8) for isotope pattern and mass spectrometry envelope calculations. It uses a hybrid R/C architecture: user-facing R functions call performance-critical C algorithms via `.Call()`.
+**pyEnvipat** (import name `envipat`) is a Python port of the R package enviPat (Loos, Gerber et al., EAWAG; GPL-2.0-only, see `LICENSE`, `AUTHORS`, `NOTICE`) for isotope pattern and mass spectrometry envelope calculations. The original algorithms are C code, compiled into a CPython extension; the Python layer handles formula parsing, pandas I/O and orchestration. The R implementation has been removed; it lives on only in git history and as frozen reference outputs in `tests/golden/`.
 
 ## Common Commands
 
 ```bash
-# Install the package locally (compiles C code)
-R CMD INSTALL .
+# Create an environment and install in editable mode (compiles the C extension)
+python -m venv .venv && . .venv/bin/activate
+pip install -e . pytest
 
-# Build a distributable tarball
-R CMD build .
+# Run the whole test suite (no R needed)
+pytest tests
 
-# Run full CRAN package checks
-R CMD check enviPat_*.tar.gz
-# or interactively:
-Rscript -e 'rcmdcheck::rcmdcheck()'
-
-# Regenerate man/ documentation from roxygen2 comments
-Rscript -e 'roxygen2::roxygenise()'
-
-# Run a single function's examples
-Rscript -e 'library(enviPat); example(isopattern)'
+# Run one module / test
+pytest tests/python/test_pipeline.py -k isowrap
 ```
 
-There is no automated test suite. All function documentation includes runnable `@examples` blocks that serve as integration tests.
+After changing any `.c`/`.h` file under `src/envipat/_core/`, re-run `pip install -e .` to rebuild the extension.
 
 ## Architecture
 
-### R/C Split
+### Layout
 
-The package has two computational layers:
+- `src/envipat/` — Python package
+  - `formula.py` — `check_chemform`, `check_ded`, `mergeform`, `multiform`, `subform`
+  - `isopattern.py`, `envelope.py`, `vdetect.py`, `check_several.py`, `isowrap.py` — pipeline functions
+  - `resolution.py` — `get_resolution` (port of R's `getR`, smoothing spline; `_rseq.py` holds R's `seq` semantics)
+  - `data.py` + `data/` — lazily loaded `isotopes`, `chemforms`, `adducts`, `resolution_list` (CSV/TXT)
+- `src/envipat/_core/` — C code: `iso_core.c/h` (pure-C core), `enviPat_py.c` (CPython bindings), and the vendored original algorithm files (`combination`, `profile`, `parse`, `element`, `isotope`, `peak`, `data.h`, `preferences.h`). `setup.py` builds them into `envipat._core.enviPat_py` with `-O2`.
 
-- **R layer** (`R/`): User-facing functions handle argument validation, looping over batches, and result formatting.
-- **C layer** (`src/`): Core algorithms called via `.Call()`. The five registered C entry points are declared in [src/enviPat_init.c](src/enviPat_init.c):
-  - `iso_pattern` / `iso_pattern_4` — two isotope fine structure algorithms (algo=1 and algo=2)
-  - `iso_ppm_Call` — PPM-based m/z discretization
-  - `iso_profile_with_trace_Call` — peak profile convolution (Gaussian / Cauchy-Lorentz)
-  - `iso_centroid_Call` — centroid / intensoid / valley detection
-
-The bulk of the C logic lives in [src/main.c](src/main.c) (~2700 lines) and [src/combination.c](src/combination.c) (~3500 lines). Static isotope and element data are embedded in [src/data.h](src/data.h) (~4600 lines).
-
-### Typical User Workflow
+### Typical workflow
 
 ```
-data(isotopes) / data(chemforms) / data(adducts)
+envipat.data.isotopes / chemforms / adducts
       ↓
 check_chemform()   ← validates & normalizes formula strings
       ↓
-isopattern()       ← calls iso_pattern or iso_pattern_4 in C
+isopattern()       ← isotope fine structure (algo=1 or algo=2)
       ↓
-envelope()         ← calls iso_profile_with_trace_Call in C
+envelope()         ← profile convolution (Gaussian / Cauchy-Lorentz)
       ↓
-vdetect()          ← calls iso_centroid_Call in C
+vdetect()          ← centroid / intensoid / valley detection
 ```
 
-`isowrap()` is a convenience wrapper that runs this full pipeline including resolution interpolation via `getR()`.
+`isowrap()` runs the pipeline end to end; `get_resolution()` interpolates instrument resolution from a `resolution_list` curve.
 
-### Bundled Data (`data/`)
+### Tests
 
-| Object | Description |
-|---|---|
-| `isotopes` | Reference table of stable isotopes (mass, abundance) |
-| `chemforms` | Example chemical formulas for demos |
-| `adducts` | 47 ESI ionization adduct definitions |
-| `resolution_list` | Empirical resolution curves for Orbitrap/QExactive instruments |
+- `tests/test_core.py` — C extension against `tests/golden/c_direct/` (exact equality).
+- `tests/python/` — data loaders, formula helpers, pipeline functions, `get_resolution`.
+- `tests/golden/` — fixtures frozen from the original R package v2.8. **Never regenerate or edit them**: the generating R scripts are no longer in the tree (`git log -- tools/make_golden.R`). Tolerances per module are documented in each test file's docstring.
 
-These `.rda` files are documented in `R/data-*.R` and must be loaded with `data(...)` before use.
+## Conventions
 
-### Documentation
-
-All exported functions use roxygen2 (`@param`, `@return`, `@examples`, etc.). Edit the roxygen block in the corresponding `R/*.R` file and regenerate with `roxygen2::roxygenise()` — do **not** edit `man/*.Rd` files directly.
-
-## Development Container
-
-A `.devcontainer/` setup is included (rocker/verse base, RStudio Server on port 8787). The container includes devtools, roxygen2, testthat, and a C/C++ compiler. VS Code extensions for R and C++ are preconfigured.
-
-**Always build, install, and run tests inside the dev container, not on the host.** The host's glibc version may not match what the container's toolchain produces, causing `.so` load failures (`GLIBC_x.xx not found`) if compiled objects cross between the two. If the container isn't already running, start it (e.g. `docker ps` to check, or use the VS Code "Reopen in Container" flow) before running `R CMD INSTALL`, `R CMD build`, `R CMD check`, or any test suite. Use `docker exec <container> bash -lc '...'` to run commands inside it from the CLI. Run `R CMD INSTALL --install-tests .` so `testthat.R` can find `tests/testthat` in the installed package, and invoke it as `cd tests && Rscript testthat.R` (mirrors how `R CMD check` sets the working directory).
+- Keep the vendored C algorithm files unmodified so floating-point behaviour matches the original; changes belong in `iso_core.c`/`enviPat_py.c`.
+- Commit messages follow Conventional Commits.
