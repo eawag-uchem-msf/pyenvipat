@@ -1,9 +1,7 @@
 """Chemical formula string helpers.
 
-Port of R's ``check_chemform`` (``R/check_chemform.R``), ``check_ded``
-(``R/check_ded.R``), ``mergeform`` (``R/mergeform.R``), ``subform``
-(``R/subform.R``) and ``multiform`` (``R/multiform.R``) -- issue #7 of the
-R -> Python port.
+Port of R's ``check_chemform``, ``check_ded``, ``mergeform``, ``subform``
+and ``multiform``.
 
 ``check_chemform`` validates and normalizes a chemical formula string (an
 optional ``[NN]`` isotope-mass-number prefix, one capital letter, zero or
@@ -51,13 +49,11 @@ parses each formula once with a small recursive-descent tokenizer
   ``D`` -> ``[2]H`` (so R's own ``check_chemform`` already normalizes
   ``"(D2)3"`` to ``"[2]H6"``, not ``"D6"``); and R's ``check_ded``
   substitutes ``D`` -> ``[2]H`` in ``deduct`` but ``D`` -> plain ``H`` in
-  ``formula1`` (``R/check_ded.R`` lines 29 vs 87). Issue #14 resolved
-  this by canonicalizing: ``D`` now means deuterium (``[2]H``)
-  everywhere in this Python port, in every function and every argument.
-  R's own ``.R`` sources are intentionally left unchanged (not in scope
-  for #14), so this is a real, permanent behavioural difference for any
-  formula containing a literal ``D`` -- not just a bug fix like the "Dy"
-  guard below.
+  ``formula1``. Issue #14 resolved this by canonicalizing: ``D`` now
+  means deuterium (``[2]H``) everywhere in this Python port, in every
+  function and every argument. This is a real, permanent behavioural
+  difference from R for any formula containing a literal ``D`` -- not
+  just a bug fix like the "Dy" guard below.
 
   Separately, R's own ``gsub("D", ...)`` calls lack the "Dy" guard above
   in ``check_ded``/``mergeform``/``subform`` and silently corrupt any
@@ -80,7 +76,7 @@ makes an isotope-labelled symbol like ``"[13]C"`` -- which appears in
 ``isotopes`` as its own single row with abundance 1 -- resolve to that
 row's own mass, while a plain ``"C"`` resolves to natural carbon's
 most-abundant isotope, ``12C``). This mirrors R's ``check_chemform``
-internals exactly (see ``R/check_chemform.R`` lines 133-147).
+internals exactly.
 """
 
 from __future__ import annotations
@@ -186,7 +182,7 @@ def _reject_repeated_symbol(tokens: list[tuple[str, int]], formula: str) -> None
 
     Used by :func:`mergeform` on each of its two input formulas *before*
     combining them: a formula's own repeated, un-merged element (e.g.
-    ``data/adducts.rda``'s ``"M+H+NH4"`` -> ``"H1N1H4"``) is what trips
+    R's ``adducts`` ``"M+H+NH4"`` -> ``"H1N1H4"``) is what trips
     R's ``mergeform`` vector-recycling bug (see module docstring / MR
     description). An earlier version of this port silently merged such
     duplicates before combining, "fixing" the corruption rather than
@@ -307,8 +303,8 @@ def _build_isotope_ref(isotopes: pd.DataFrame) -> _IsotopeRef:
     """For each unique element symbol (isotopes' 1st column), in order of
     first appearance, record its reference (most-abundant-isotope) mass:
     the mass (3rd column) of the row with the highest abundance (4th
-    column) among all rows sharing that symbol. Mirrors R/check_chemform.R
-    lines 133-147 (positional, not name-based, matching R's isotopes[,1]/
+    column) among all rows sharing that symbol. Mirrors R's check_chemform
+    (positional, not name-based, matching R's isotopes[,1]/
     [,3]/[,4] column access -- so a caller-supplied isotopes table need
     only match column *order*, not names)."""
     elem_col = isotopes.iloc[:, 0]
@@ -336,7 +332,7 @@ def check_chemform(
 ):
     """Check and normalize chemical formulas; compute monoisotopic mass.
 
-    Port of R's ``check_chemform`` (``R/check_chemform.R``).
+    Port of R's ``check_chemform``.
 
     Parameters
     ----------
@@ -430,14 +426,14 @@ def check_chemform(
 def check_ded(formulas, deduct) -> list:
     """Check whether ``deduct`` is fully contained in each of ``formulas``.
 
-    Port of R's ``check_ded`` (``R/check_ded.R``). ``formulas`` and
+    Port of R's ``check_ded``. ``formulas`` and
     ``deduct`` must already be fully counted, unbracketed formulas (as
     produced by :func:`check_chemform`).
 
     ``D`` is substituted for ``[2]H`` before tokenizing, in both
     ``deduct`` and each of ``formulas``. R's original substitutes
     ``D`` -> ``[2]H`` in ``deduct`` but ``D`` -> plain ``H`` in
-    ``formula1`` (``R/check_ded.R`` lines 29 vs 87); this port
+    ``formula1``; this port
     canonicalizes both sides to deuterium instead (issue #14), so e.g.
     ``check_ded(["C4D10"], "C4H10")`` now reports ``True`` (deduct's
     ``H10`` is *not* contained in the formula's ``[2]H10``), unlike R.
@@ -477,11 +473,11 @@ def check_ded(formulas, deduct) -> list:
 def mergeform(formula1, formula2) -> list:
     """Combine chemical formulas by summing element counts.
 
-    Port of R's ``mergeform`` (``R/mergeform.R``). Both arguments must
+    Port of R's ``mergeform``. Both arguments must
     already be fully counted, unbracketed formulas.
 
     Unlike R's original -- which, given a formula with an internally
-    repeated, un-merged element (e.g. ``data/adducts.rda``'s
+    repeated, un-merged element (e.g. R's ``adducts``
     ``"M+H+NH4"`` -> ``"H1N1H4"``), silently corrupts every element
     processed afterwards via vector recycling (see MR !7 for the full
     trace) -- this raises ``ValueError`` promptly instead of "fixing" the
@@ -539,7 +535,7 @@ def mergeform(formula1, formula2) -> list:
 def subform(formula1, formula2) -> list:
     """Subtract ``formula2`` from each of ``formula1``.
 
-    Port of R's ``subform`` (``R/subform.R``). Both arguments must already
+    Port of R's ``subform``. Both arguments must already
     be fully counted, unbracketed formulas. Elements whose count drops to
     (or was already) zero are dropped from the result, matching R.
 
@@ -599,7 +595,7 @@ def subform(formula1, formula2) -> list:
 def multiform(formula_in, fact) -> list:
     """Multiply every element count in a chemical formula by a factor.
 
-    Port of R's ``multiform`` (``R/multiform.R``). Must already be a
+    Port of R's ``multiform``. Must already be a
     fully counted, unbracketed formula.
 
     Parameters

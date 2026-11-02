@@ -1,4 +1,4 @@
-"""Resolution interpolation (port of R's ``getR`` / ``R/getR.R``).
+"""Resolution interpolation (port of R's ``getR``).
 
 R's ``getR`` fits a smoothing spline to the instrument's mass -> resolution
 calibration table and evaluates it at each formula's mass. This port fits
@@ -74,7 +74,7 @@ def _dedup_and_aggregate(x, y, w=None, tol=None):
 def get_resolution(checked: pd.DataFrame, resmass: pd.DataFrame) -> pd.Series:
     """Interpolate instrument resolution at each checked formula's mass.
 
-    Port of R's ``getR`` (``R/getR.R``), fitted with
+    Port of R's ``getR``, fitted with
     :func:`scipy.interpolate.make_smoothing_spline` (see the module docstring
     for the accuracy caveat versus R).
 

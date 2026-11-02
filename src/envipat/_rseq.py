@@ -1,6 +1,6 @@
 """A faithful re-implementation of R's three-argument ``seq(from, to, by)``.
 
-``envelope`` (``R/envelope.R``) builds its mass trace two different ways
+R's ``envelope`` builds its mass trace two different ways
 depending on argument ``dmz``:
 
 - ``dmz`` numeric, ``ppm=FALSE``: ``traceit <- seq(min(m)-0.5, max(m)+0.5, dmz)``
@@ -18,11 +18,11 @@ element back down to ``to`` (``pmin``/``pmax``) to correct any floating
 point overshoot in the final step. Both of those behaviours matter for
 matching R's own element count and last value.
 
-This is intentionally a semantic port, not a bit-exact one: issue #8's own
-scope note calls out that seq()-based mass trace construction is "a known
-source of floating-point divergence from R's evaluator", which is exactly
-why the golden-fixture comparison for ``envelope``/``vdetect`` uses
-``rtol=1e-12`` rather than an exact match (see tests/python/test_pipeline.py).
+This is intentionally a semantic port, not a bit-exact one: seq()-based
+mass trace construction is a known source of floating-point divergence
+from R's evaluator, which is exactly why the golden-fixture comparison
+for ``envelope``/``vdetect`` uses ``rtol=1e-12`` rather than an exact match
+(see tests/python/test_pipeline.py).
 Source consulted: base R's ``seq.default`` (``print(seq.default)`` in R
 4.1/4.6, unchanged in this respect across versions), for the
 from/to/by-all-given, non-integer branch.

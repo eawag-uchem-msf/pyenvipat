@@ -1,12 +1,11 @@
 """Lazy-loaded access to enviPat's bundled reference datasets.
 
 Mirrors the R package's ``data(isotopes)``, ``data(chemforms)``,
-``data(adducts)`` and ``data(resolution_list)`` objects (see ``data/*.rda``
-and ``R/data-*.R`` in the R source). The plain-text CSV/TXT files backing
-this module live under ``envipat/data/`` (a plain resource directory, not a
-sub-package) and were generated from the ``.rda`` files by
-``tools/export_data.R`` - see that script for the exact export format and
-the full-precision ("%.17g") handling of floating point columns.
+``data(adducts)`` and ``data(resolution_list)`` objects. The plain-text
+CSV/TXT files backing this module live under ``envipat/data/`` (a plain
+resource directory, not a sub-package) and were exported once from the R
+package's datasets, with floating point columns written at full precision
+("%.17g") so every double round-trips bit-exactly.
 
 Each dataset is exposed as a module-level attribute (``isotopes``,
 ``chemforms``, ``adducts``, ``resolution_list``) but is only read and parsed
@@ -19,7 +18,7 @@ Data files and shapes
   loaded as a :class:`pandas.DataFrame` (308 rows).
 - ``chemforms.txt``: one chemical formula per line, loaded as a
   :class:`pandas.Series` of strings (107 elements).
-- ``adducts.csv``: 9 columns matching ``R/data-adducts.R`` -
+- ``adducts.csv``: 9 columns matching R's ``adducts`` -
   ``Name, calc, Charge, Mult, Mass, Ion_mode, Formula_add, Formula_ded,
   Multi`` - loaded as a :class:`pandas.DataFrame` (51 rows).
 - ``resolution_list.csv``: long format, columns ``name, mz, R`` (one row per
@@ -63,8 +62,8 @@ def _data_path(filename: str):
 @lru_cache(maxsize=1)
 def _load_isotopes() -> pd.DataFrame:
     # float_precision="round_trip": these CSVs were exported with sprintf
-    # ("%.17g", .) specifically to round-trip every double bit-exactly (see
-    # tools/export_data.R); pandas' default C float parser ("low") does not
+    # ("%.17g", .) specifically to round-trip every double bit-exactly;
+    # pandas' default C float parser ("low") does not
     # guarantee that for 17-significant-digit strings and silently drops the
     # last 1-2 bits on some rows (discovered while verifying issue #7's
     # check_chemform against R: isotopes.csv had 6/308 mass and 81/308

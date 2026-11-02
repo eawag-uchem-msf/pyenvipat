@@ -1,9 +1,8 @@
 """Valley detection and centroidization.
 
-Port of R's ``vdetect`` (``R/vdetect.R``) -- issue #8 of the R -> Python
-port. Calls ``envipat._core.enviPat_py.centroid`` (issue #5's Python
-binding of the same ``iso_core.c`` algorithm R's ``iso_centroid_Call``
-``.Call`` entry point delegates to) on each envelope profile from
+Port of R's ``vdetect``. Calls ``envipat._core.enviPat_py.centroid`` (the
+Python binding of the original ``iso_core.c`` algorithm) on each envelope
+profile from
 :func:`envipat.envelope.envelope`.
 
 Result shape
@@ -11,8 +10,7 @@ Result shape
 Returns ``dict[str, pandas.DataFrame | str]`` keyed like the input
 ``profiles`` dict, each DataFrame with two columns ``"m/z"`` and
 ``"abundance"``. As in :func:`envipat.envelope.envelope`, an empty/erroring
-detection result is reported as the literal string ``"error"``
-(``R/vdetect.R``: ``if(!length(out[[1]])) getlist[[i]] <- "error"``),
+detection result is reported as the literal string ``"error"``,
 covering both a raised ``EnviPatCoreError`` and a legitimate zero-length
 result.
 
@@ -44,7 +42,7 @@ def vdetect(
 ):
     """Detect centroids, intensoids or valleys in envelope profile(s).
 
-    Port of R's ``vdetect`` (``R/vdetect.R``).
+    Port of R's ``vdetect``.
 
     Parameters
     ----------
@@ -54,7 +52,7 @@ def vdetect(
         ``"abundance"``).
     detect
         ``"centroid"`` (default), ``"intensoid"`` or ``"valley"`` -- see
-        ``R/vdetect.R``'s "Definitions" section for the precise meaning of
+        R's ``?vdetect`` "Definitions" section for the precise meaning of
         each.
     verbose
         If True, prints ``" done."`` on completion (matching R's

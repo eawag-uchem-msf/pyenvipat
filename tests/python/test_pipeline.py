@@ -1,12 +1,10 @@
-"""Golden-fixture regression tests for issue #8's pipeline port:
+"""Golden-fixture regression tests for the pipeline functions:
 isopattern, envelope, vdetect, check_several, isowrap.
 
 Golden fixtures were frozen from the real R package (v2.8) in issue #3
-(``tools/make_golden.R``, since removed but kept in git history;
-``tests/golden/<fn>/cases.csv`` + per-case
-output CSVs). Each fixture file was written by stacking every input
-formula's own (possibly differently-shaped) result table into one CSV via
-that script's ``stack_pattern_list()``/``rbind_fill()`` helpers -- a
+(``tests/golden/<fn>/cases.csv`` + per-case output CSVs). Each fixture
+file was written by stacking every input formula's own (possibly
+differently-shaped) result table into one CSV -- a
 union of every formula's columns, NA-filled for formulas that don't have
 a given column. :func:`_split_by_compound` below reverses that: it
 regroups the stacked table back into one frame per compound (columns
@@ -93,9 +91,9 @@ def _load_cases(section: str) -> dict[str, dict[str, str]]:
 
 def _read_stacked_csv(path: Path) -> pd.DataFrame:
     # float_precision="round_trip": these fixtures were written with
-    # sprintf("%.17g", .) to round-trip every double bit-exactly (see
-    # tools/make_golden.R); pandas' default C float parser silently drops
-    # the last 1-2 bits on some rows for 17-significant-digit strings --
+    # sprintf("%.17g", .) to round-trip every double bit-exactly; pandas'
+    # default C float parser silently drops the last 1-2 bits on some rows
+    # for 17-significant-digit strings --
     # exactly the pitfall already documented and fixed for envipat.data's
     # isotopes.csv/adducts.csv loaders (see that module). isopattern's
     # golden comparison is an *exact* match, so this matters here more
@@ -117,11 +115,11 @@ def _read_stacked_csv(path: Path) -> pd.DataFrame:
 
 
 def _split_by_compound(df: pd.DataFrame) -> dict[str, object]:
-    """Reverses tools/make_golden.R's stack_pattern_list()/rbind_fill():
-    regroups a stacked golden fixture table back into one value per
-    compound, in first-appearance order.
+    """Reverses the fixture generator's row stacking (a column union,
+    NA-filled per formula): regroups a stacked golden fixture table back
+    into one value per compound, in first-appearance order.
 
-    Columns are aligned by *name*: rbind_fill's column union can end up
+    Columns are aligned by *name*: the column union can end up
     interleaving different formulas' isotope columns in a different
     relative order than any single formula's own isopattern() call would
     produce for itself (e.g. a later formula whose own element-parse
@@ -161,12 +159,10 @@ def _assert_profile_dict_matches(got: dict, expected: dict, *, rtol: float) -> N
 
 
 # --------------------------------------------------------------------- #
-# Shared formula pools -- replicates tools/make_golden.R's pool10/pool3/
-# pool5 construction (see that script's "Shared formula pools" section)
-# using this port's own (issue #7, already golden-verified exact) check_
-# chemform, rather than asking R for them -- cross-checked once against
-# a direct Rscript dump to confirm this reproduces the same 10 formulas
-# in the same order (see MR description).
+# Shared formula pools -- replicates the fixture generator's pool10/pool3/
+# pool5 construction using this package's own (golden-verified exact)
+# check_chemform -- cross-checked once to confirm this reproduces the same
+# 10 formulas in the same order the golden fixtures were built from.
 # --------------------------------------------------------------------- #
 
 
@@ -300,7 +296,7 @@ def test_isopattern_multiple_duplicate_formulas_all_named():
 # --------------------------------------------------------------------- #
 
 ENVELOPE_CASES = _load_cases("envelope")
-# Hardcoded to match tools/make_golden.R's dmz_modes list exactly (its
+# Hardcoded to match the fixture generator's dmz_modes list exactly (its
 # "abs" and "ppm" numeric dmz values -- the manifest's params only record
 # the *mode name*, not the value that generated it).
 _ENVELOPE_DMZ_ABS = 0.001

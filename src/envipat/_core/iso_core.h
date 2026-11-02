@@ -7,17 +7,16 @@
 //  (pyEnvipat); distributed under the GNU GPL v2 (GPL-2.0-only), same
 //  as the original R package. See LICENSE, AUTHORS and NOTICE.
 //
-//  Pure-C core for the 5 registered .Call entry points (see
-//  src/enviPat_init.c). No SEXP / PROTECT / Rprintf / R.h in this file or
-//  in iso_core.c -- this is the boundary the R SEXP wrappers in main.c call
-//  into, and the foundation a future non-R (e.g. Python) extension can call
-//  into directly.
+//  Pure-C core for the 5 algorithm entry points (pattern algo 1/4, ppm
+//  trace, profile with trace, centroid). No R dependency in this file or
+//  in iso_core.c -- this is the boundary the CPython extension
+//  (enviPat_py.c) calls into.
 //
 //  Error handling convention: every iso_core_* entry point returns an
 //  ISO_CORE_OK / ISO_CORE_ERR_* status code and, on failure, fills the
 //  caller-supplied errmsg buffer (ISO_CORE_ERRMSG_SIZE bytes) with a
-//  human-readable message (no trailing newline). Callers that used to
-//  Rprintf() the message can do so themselves from the SEXP wrapper.
+//  human-readable message (no trailing newline); reporting it is up to
+//  the caller.
 //
 
 #ifndef ISO_CORE_H

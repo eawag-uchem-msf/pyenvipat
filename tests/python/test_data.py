@@ -1,7 +1,7 @@
 """Spot-check tests for envipat.data (issue #6).
 
-These are ad hoc verification tests for the R -> CSV/TXT export
-(tools/export_data.R) and the Python loaders (src/envipat/data.py). They
+These are ad hoc verification tests for the bundled CSV/TXT datasets and
+the Python loaders (src/envipat/data.py). They
 check dataset shapes and a handful of exact values that were independently
 read off the original R data() objects (see the commit message / PR
 description for the R-side sprintf("%.17g", .) values these were compared

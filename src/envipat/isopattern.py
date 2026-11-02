@@ -1,11 +1,8 @@
 """Isotope pattern calculation.
 
-Port of R's ``isopattern`` (``R/isopattern.R``) -- issue #8 of the R ->
-Python port. Calls ``envipat._core.enviPat_py.pattern_algo1``/
-``pattern_algo2`` (the Python bindings, from issue #5, of the same
-``iso_core.c`` algorithms R's ``iso_pattern``/``iso_pattern_4`` ``.Call``
-entry points delegate to -- see ``R/isopattern.R`` and
-``src/envipat/_core/enviPat_py.c``).
+Port of R's ``isopattern``. Calls ``envipat._core.enviPat_py.pattern_algo1``/
+``pattern_algo2`` (the Python bindings of the original ``iso_core.c``
+algorithms -- see ``src/envipat/_core/enviPat_py.c``).
 
 Result shape
 ------------
@@ -25,16 +22,14 @@ peaks (e.g. ``"12C"``, ``"13C"``, ``"1H"``, ...), in the same order
 ``_core`` returns them.
 
 For an invalid formula (the same "unknown element" / malformed-formula
-condition ``check_chemform`` flags), R's C entry point returns
-``R_NilValue`` and ``isopattern`` sets that list entry to the literal
-string ``"error"`` instead of a data.frame (``R/isopattern.R``:
-``if(!length(out[[1]])) pattern[[i]] <- "error"``). This is reproduced
-here exactly: on ``EnviPatCoreError`` (or an empty result -- ``_core``
-never actually returns one for pattern_algo1/2, but the empty-result path
-is mirrored anyway for parity with the same idiom in ``envelope``/
-``vdetect``), the dict value is the string ``"error"``, not a DataFrame.
-Callers must check for this (``isinstance(pattern[f], str)``) before
-treating a value as a DataFrame -- exactly as R callers must check
+condition ``check_chemform`` flags), R's ``isopattern`` sets that list entry
+to the literal string ``"error"`` instead of a data.frame. This is
+reproduced here exactly: on ``EnviPatCoreError`` (or an empty result --
+``_core`` never actually returns one for pattern_algo1/2, but the
+empty-result path is mirrored anyway for parity with the same idiom in
+``envelope``/``vdetect``), the dict value is the string ``"error"``, not a
+DataFrame. Callers must check for this (``isinstance(pattern[f], str)``)
+before treating a value as a DataFrame -- exactly as R callers must check
 ``identical(pattern[[i]], "error")`` (see ``check_several``'s R original,
 which does exactly that).
 """
@@ -53,14 +48,14 @@ from ._core import enviPat_py as _core
 
 __all__ = ["isopattern"]
 
-# R default: 0.00054857990924 (electron mass, Da). Matches R/isopattern.R.
+# R default: 0.00054857990924 (electron mass, Da).
 _DEFAULT_EMASS = 0.00054857990924
 
 _ALGOS = {1: "pattern_algo1", 2: "pattern_algo2"}
 
 
 def _as_charge_list(charge, n_formulas: int) -> list:
-    """Mirrors R's charge-argument handling in isopattern() (R/isopattern.R):
+    """Mirrors R's charge-argument handling in isopattern():
     a scalar (including FALSE) recycled to length n_formulas, or a
     per-formula vector that must already match n_formulas in length."""
     if charge is False:
@@ -98,7 +93,7 @@ def isopattern(
 ):
     """Calculate isotope fine structure pattern(s) for one or more formulas.
 
-    Port of R's ``isopattern`` (``R/isopattern.R``).
+    Port of R's ``isopattern``.
 
     Parameters
     ----------
@@ -127,11 +122,11 @@ def isopattern(
         Probability definition/pruning basis: 0=relative to the most
         intense peak, 1=relative to the "monoisotopic" peak, 2=absolute,
         3/4=percentage-of-(0/1) but returned as absolute probabilities.
-        See ``R/isopattern.R``'s details section.
+        See R's ``?isopattern`` details section.
     verbose
         If True, prints ``" done."`` on completion (matching R's
         ``message(" done.")``; R's own per-formula progress messages from
-        the C layer are not reproduced here, matching #5's core wrapper).
+        the C layer are not reproduced here).
     return_iso_calc_amount
         If True, returns raw per-element isotope-combination counts
         (``dict[str, int]``) instead of the pattern DataFrame for every
