@@ -7,11 +7,10 @@
 //  (pyEnvipat); distributed under the GNU GPL v2 (GPL-2.0-only), same
 //  as the original R package. See LICENSE, AUTHORS and NOTICE.
 //
-//  Pure-C core algorithms for the 5 registered .Call entry points. This
-//  file has no SEXP / PROTECT / Rprintf / R.h dependency. It is a
-//  structural extraction from main.c (issue #4 of the R -> Python port):
-//  the floating point operations below run in exactly the same order as
-//  the original inline/SEXP code they were lifted from -- this is a pure
+//  Pure-C core algorithms for the 5 algorithm entry points. This file has
+//  no R dependency. It is a structural extraction from the original
+//  main.c: the floating point operations below run in exactly the same
+//  order as the original code they were lifted from -- this is a pure
 //  refactor, not a rewrite.
 //
 //  See iso_core.h for the error-code convention used uniformly across all
@@ -134,7 +133,7 @@ int iso_core_ppm_trace(double start,
     }
 
     /* Trim the over-allocated buffer down to the values actually written
-       (mirrors the original SEXP code's Rf_lengthgets(trace_R, n + 1)). */
+       (mirrors the original code's resize to n + 1 elements). */
     double *trimmed = (double*)realloc(tr, (size_t)(n + 1) * sizeof(double));
     if (trimmed != NULL) {
         tr = trimmed;
@@ -425,9 +424,9 @@ int iso_core_pattern_algo1(char *sum,
         || element_amount >= MAX_ELEMENTS
         ) {
         free(elements);
-        /* Matches the original inline code: this specific check returned
-           R_NilValue silently, with no Rprintf. errmsg is left empty so
-           the SEXP wrapper knows not to print anything for this case. */
+        /* Matches the original code: this specific check failed silently,
+           without a message. errmsg is left empty so callers can tell
+           this case apart (enviPat_py.c falls back to a generic message). */
         errmsg[0] = '\0';
         return ISO_CORE_ERR_INVALID_ISO_AMOUNT;
     }
@@ -550,9 +549,9 @@ int iso_core_pattern_algo4(char *sum,
         || element_amount >= MAX_ELEMENTS
         ) {
         free(elements);
-        /* Matches the original inline code: this specific check returned
-           R_NilValue silently, with no Rprintf. errmsg is left empty so
-           the SEXP wrapper knows not to print anything for this case. */
+        /* Matches the original code: this specific check failed silently,
+           without a message. errmsg is left empty so callers can tell
+           this case apart (enviPat_py.c falls back to a generic message). */
         errmsg[0] = '\0';
         return ISO_CORE_ERR_INVALID_ISO_AMOUNT;
     }

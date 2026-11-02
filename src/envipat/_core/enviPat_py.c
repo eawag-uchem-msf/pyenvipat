@@ -2,18 +2,14 @@
  * enviPat_py.c
  *
  * CPython + NumPy C-API extension exposing the 5 algorithm entry points of
- * the pure-C core (iso_core.c/h, extracted from the R package's src/main.c
- * in issue #4) directly to Python, with NumPy arrays in/out.
+ * the pure-C core (iso_core.c/h, extracted from the original enviPat
+ * main.c) directly to Python, with NumPy arrays in/out.
  *
- * This is the Python-side analogue of the R package's SEXP wrappers in
- * src/main.c -- but it deliberately does NOT replicate their R-specific
- * result-shaping logic (e.g. the `rica`/return_iso_calc_amount branch that
- * returns a completely different SEXP type, or algo4's zero-count element
- * name concatenation within that branch). Every pattern_algo* call here
- * always returns the same dict shape, with the raw per-element
- * all_iso_calc_amount values included; a future, higher-level Python port
- * of the R wrapper functions themselves (isopattern(), etc.) can build
- * whatever R-equivalent views it needs on top of this.
+ * It deliberately does no result shaping of its own: every pattern_algo*
+ * call here always returns the same dict shape, with the raw per-element
+ * all_iso_calc_amount values included; the higher-level Python pipeline
+ * functions (envipat.isopattern, etc.) build their user-facing views on
+ * top of this.
  *
  * Error handling: iso_core_* functions return an ISO_CORE_OK/ISO_CORE_ERR_*
  * status code and fill a caller-supplied errmsg buffer on failure (see
@@ -42,8 +38,8 @@ static PyObject *EnviPatCoreError;
 /* ------------------------------------------------------------------- */
 
 /* Copies `n` doubles out of a malloc'd buffer into a new, NumPy-owned
-   1-D float64 array. Does not free `buf` -- the caller does that, mirroring
-   the R SEXP wrappers' own memcpy-then-free pattern in main.c. */
+   1-D float64 array. Does not free `buf` -- the caller does that
+   (memcpy-then-free). */
 static PyObject *
 double_array_from_buffer(const double *buf, npy_intp n)
 {
@@ -72,9 +68,9 @@ name_from_slot(const char *names, size_t index)
 
 /* Raises EnviPatCoreError with `errmsg` when non-empty, or `fallback`
    otherwise (iso_core_pattern_algo1/4 leave errmsg empty on one specific
-   error path -- ISO_CORE_ERR_INVALID_ISO_AMOUNT -- that the original SEXP
-   wrapper treats as a silent R_NilValue return; every other error path
-   always sets errmsg). */
+   error path -- ISO_CORE_ERR_INVALID_ISO_AMOUNT -- that the original code
+   treated as a silent failure; every other error path always sets
+   errmsg). */
 static void
 set_core_error(const char errmsg[ISO_CORE_ERRMSG_SIZE], const char *fallback)
 {
@@ -289,7 +285,7 @@ typedef int (*PatternAlgoFn)(char *sum, int peak_limit, double threshold, int re
  *   element_names                : list[str], length element_amount
  *   element_all_iso_calc_amount  : int32[element_amount] -- raw per-element
  *                                  isotope-combination counts (elements[i].all_iso_calc_amount);
- *                                  this is what R's rica=1 branch returns, unfiltered/ungrouped
+ *                                  unfiltered/ungrouped (return_iso_calc_amount)
  */
 static PyObject *
 pattern_result_to_pyobject(const IsoPatternResult *result)
@@ -450,11 +446,9 @@ call_pattern_algo(PatternAlgoFn algo, PyObject *args, PyObject *kwargs)
                 goto cleanup;
             }
             /* MAX_NAME_SIZE-1 chars + NUL, matching the fixed-width packed
-               buffer main.c's SEXP wrapper builds via strcpy (see
-               src/main.c's iso_pattern/iso_pattern_4). Enforced here
-               (unlike the original strcpy, which has no bound check)
-               since we control the buffer independently of R's own
-               isotope-table invariants. */
+               buffer layout iso_core expects. The bound is enforced here
+               (the original strcpy-based packing had no bound check)
+               since callers may pass arbitrary isotope tables. */
             if (strlen(e_str) >= MAX_NAME_SIZE || strlen(s_str) >= MAX_NAME_SIZE) {
                 PyErr_Format(PyExc_ValueError,
                              "element/isotope name longer than %d characters at index %zd",
@@ -465,10 +459,10 @@ call_pattern_algo(PatternAlgoFn algo, PyObject *args, PyObject *kwargs)
             strcpy(&i_il_[(size_t)i * MAX_NAME_SIZE], s_str);
         }
 
-        /* Defensive copy of the formula string -- mirrors main.c's own
-           R_alloc+strcpy before calling into iso_core (parse_sum_formula_
-           vector_R only reads through its sum_formula pointer, but we
-           don't rely on that not changing in the future). */
+        /* Defensive copy of the formula string before calling into
+           iso_core (parse_sum_formula_vector_R only reads through its
+           sum_formula pointer, but we don't rely on that not changing in
+           the future). */
         sum_copy = strdup(sum_in);
         if (sum_copy == NULL) {
             PyErr_NoMemory();
@@ -524,8 +518,7 @@ envipat_pattern_algo2(PyObject *self, PyObject *args, PyObject *kwargs)
 static PyMethodDef EnviPatMethods[] = {
     {"ppm_trace", (PyCFunction)(void (*)(void))envipat_ppm_trace, METH_VARARGS | METH_KEYWORDS,
      "ppm_trace(start, end, ppm) -> ndarray[float64]\n\n"
-     "Generates a ppm-spaced mass trace between start and end. Mirrors "
-     "the R package's iso_ppm_Call .Call entry point."},
+     "Generates a ppm-spaced mass trace between start and end."},
     {"centroid", (PyCFunction)(void (*)(void))envipat_centroid, METH_VARARGS | METH_KEYWORDS,
      "centroid(profile_mass, profile_abundance, type) -> (ndarray, ndarray)\n\n"
      "Centroid (type=0), intensoid/local-maxima (type=1) or valley (type=2) "
