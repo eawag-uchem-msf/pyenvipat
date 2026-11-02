@@ -45,6 +45,21 @@ being ported) were found to be internally inconsistent -- see the
   the fixture with four independent scalar calls (verified directly
   against R); it is now exercised as an ordinary golden fixture below,
   no longer as a documented divergence.
+- Issue #14 resolved R's five-way-inconsistent handling of the `D`
+  (deuterium) shorthand by canonicalizing `D` -> `[2]H` everywhere in
+  this port (check_chemform's top level now substitutes like its
+  in-group helper already did; check_ded's `formulas` argument now
+  substitutes to `[2]H` like `deduct` already did). This is a genuine,
+  permanent behavioural divergence from R (left unchanged, out of scope
+  for #14), not a bug fix -- see the "D is substituted..." paragraph in
+  envipat/formula.py's own module docstring for the full R-vs-Python
+  writeup. check_chemform/case_002.csv rows 8/9 ("D2H2O1",
+  "[13]C2C8D2H8[15]N2N2[18]O2O3") and formula_algebra/case_006.csv row 4
+  ("C4D10"/"C4H10") are R's frozen reference output for these formulas
+  and are deliberately *not* reproduced for those rows any more; the
+  divergent Python results are asserted directly in
+  test_check_chemform_d_canonicalized_to_deuterium and
+  test_check_ded_d_canonicalized_to_deuterium below instead.
 
 Run inside the dev container, after `pip install -e .`:
     pytest tests/python
@@ -57,6 +72,7 @@ import pytest
 
 import envipat.data as data
 from envipat.formula import check_chemform, check_ded, mergeform, multiform, subform
+from envipat.formula import _D_NOT_BEFORE_LOWER_RE
 
 GOLDEN_CHEMFORM = Path(__file__).resolve().parents[2] / "tests" / "golden" / "check_chemform"
 GOLDEN_ALGEBRA = Path(__file__).resolve().parents[2] / "tests" / "golden" / "formula_algebra"
@@ -74,19 +90,68 @@ def _read_golden(path):
 
 
 def test_check_chemform_case_001_broad_pass_all_chemforms():
+    # 18 of data.chemforms' 107 entries contain a literal "D" (e.g.
+    # "C4H5N5D6", "C8H5D4N1O2") and no longer match this golden (R)
+    # reference verbatim since issue #14 canonicalized check_chemform's
+    # top level to substitute D -> [2]H, which R's top level does not do;
+    # their divergent, canonicalized output is skipped here (warning is
+    # still checked for every row) and covered separately by
+    # test_check_chemform_d_canonicalized_to_deuterium_in_chemforms below.
+    forms = list(data.chemforms)
+    diverges_since_issue_14 = [i for i, f in enumerate(forms) if _D_NOT_BEFORE_LOWER_RE.search(f)]
+    assert len(diverges_since_issue_14) == 18
+
     exp = _read_golden(GOLDEN_CHEMFORM / "case_001.csv")
-    got = check_chemform(data.isotopes, list(data.chemforms))
+    got = check_chemform(data.isotopes, forms)
     assert len(got) == len(exp)
     pd.testing.assert_series_equal(got["warning"], exp["warning"], check_names=False)
+
+    keep = [i for i in range(len(forms)) if i not in diverges_since_issue_14]
     pd.testing.assert_series_equal(
-        got["new_formula"], exp["new_formula"], check_names=False
+        got["new_formula"].iloc[keep].reset_index(drop=True),
+        exp["new_formula"].iloc[keep].reset_index(drop=True),
+        check_names=False,
     )
     # exact (bit-for-bit) float match, not just close
-    mismatches = (got["monoisotopic_mass"].to_numpy() != exp["monoisotopic_mass"].to_numpy())
+    got_mass = got["monoisotopic_mass"].iloc[keep].to_numpy()
+    exp_mass = exp["monoisotopic_mass"].iloc[keep].to_numpy()
+    mismatches = got_mass != exp_mass
     assert not mismatches.any(), (
         f"{mismatches.sum()} mass mismatches, e.g. at "
-        f"{list(data.chemforms)[mismatches.argmax()]!r}"
+        f"{[forms[i] for i in keep][mismatches.argmax()]!r}"
     )
+
+
+def test_check_chemform_d_canonicalized_to_deuterium_in_chemforms():
+    # Every one of the 18 data.chemforms entries skipped above (see
+    # test_check_chemform_case_001_broad_pass_all_chemforms) must now
+    # normalize with no bare "D" token left (it was canonicalized to
+    # [2]H) and must diverge from R's frozen golden mass for that row --
+    # a general regression check that issue #14's canonicalization fired
+    # for all of them, not just the handful spot-checked below.
+    forms = list(data.chemforms)
+    exp = _read_golden(GOLDEN_CHEMFORM / "case_001.csv")
+    got = check_chemform(data.isotopes, forms)
+    for i, f in enumerate(forms):
+        if not _D_NOT_BEFORE_LOWER_RE.search(f):
+            continue
+        assert not _D_NOT_BEFORE_LOWER_RE.search(got["new_formula"].iloc[i]), f
+        assert got["monoisotopic_mass"].iloc[i] != exp["monoisotopic_mass"].iloc[i], f
+
+    # Spot-check three representative entries against their exact,
+    # canonicalized values (R's frozen golden reference for these rows is
+    # "C4H5N5D6"/135.13910589, "C8H1N4O2D9"/203.13686633200001 and
+    # "C14H10N2O1[13]C1D2"/239.11087152000002 -- check_chemform/case_001.csv).
+    spot = ["C4H5N5D6", "C8H1N4O2D9", "C14H10N2O1[13]C1D2"]
+    got_spot = check_chemform(data.isotopes, spot)
+    assert list(got_spot["new_formula"]) == [
+        "C4H5N5[2]H6",
+        "C8H1N4O2[2]H9",
+        "C14H10N2O1[13]C1[2]H2",
+    ]
+    assert got_spot["monoisotopic_mass"].iloc[0] == 135.139105878
+    assert got_spot["monoisotopic_mass"].iloc[1] == 203.136866314
+    assert got_spot["monoisotopic_mass"].iloc[2] == 239.110871516
 
 
 def test_check_chemform_case_002_edge_cases():
@@ -94,10 +159,19 @@ def test_check_chemform_case_002_edge_cases():
         "C900Cl4H49", "O82394", "C8G500Zn9", "Br1", "6DBr9889", "",
         "C1H6O6", "D2H2O1", "[13]C2C8D2H8[15]N2N2[18]O2O3",
     ]
+    # Indices 7 ("D2H2O1") and 8 ("[13]C2C8D2H8[15]N2N2[18]O2O3") contain a
+    # literal "D" and no longer match this golden (R) reference verbatim:
+    # issue #14 canonicalized check_chemform's top level to substitute
+    # D -> [2]H, which R's top level does not do. Their divergent,
+    # canonicalized Python output is asserted directly in
+    # test_check_chemform_d_canonicalized_to_deuterium below instead.
+    diverges_since_issue_14 = {7, 8}
     exp = _read_golden(GOLDEN_CHEMFORM / "case_002.csv")
     got = check_chemform(data.isotopes, forms)
     for i, f in enumerate(forms):
         assert bool(got["warning"].iloc[i]) == bool(exp["warning"].iloc[i]), f
+        if i in diverges_since_issue_14:
+            continue
         assert got["new_formula"].iloc[i] == exp["new_formula"].iloc[i], f
         assert got["monoisotopic_mass"].iloc[i] == exp["monoisotopic_mass"].iloc[i], f
 
@@ -115,12 +189,23 @@ def test_check_chemform_case_003_get_sorted():
 
 
 def test_check_chemform_case_004_get_list():
+    # "[13]C2C8D2H8[15]N2N2[18]O2O3" contains a literal "D" and no longer
+    # matches this golden (R) reference verbatim: issue #14 canonicalized
+    # check_chemform's top level to substitute D -> [2]H, so its D:2 entry
+    # becomes a [2]H:2 entry (merged with -- but kept distinct from --
+    # its own separate H:8 entry) instead. Its divergent, canonicalized
+    # dict is asserted directly below instead.
     exp = _read_golden(GOLDEN_CHEMFORM / "case_004.csv")
     forms = list(dict.fromkeys(exp["formula"]))
+    diverges_since_issue_14 = "[13]C2C8D2H8[15]N2N2[18]O2O3"
+    assert diverges_since_issue_14 in forms
+
     got = check_chemform(data.isotopes, forms, get_list=True)
     assert isinstance(got, list)
     assert len(got) == len(forms)
     for i, f in enumerate(forms):
+        if f == diverges_since_issue_14:
+            continue
         expected = dict(
             zip(
                 exp.loc[exp["formula"] == f, "element"],
@@ -128,6 +213,11 @@ def test_check_chemform_case_004_get_list():
             )
         )
         assert got[i] == expected, f
+
+    got_divergent = check_chemform(data.isotopes, [diverges_since_issue_14], get_list=True)
+    assert got_divergent[0] == {
+        "[13]C": 2, "C": 8, "[2]H": 2, "H": 8, "[15]N": 2, "N": 2, "[18]O": 2, "O": 3,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -166,22 +256,38 @@ def test_check_chemform_zero_count_is_valid():
     assert list(got["monoisotopic_mass"]) == [0.0, 0.0]
 
 
-def test_check_chemform_d_not_substituted_at_top_level():
-    # D is its own element in `isotopes` (abundance 1); check_chemform does
-    # NOT rewrite it to [2]H at the top level (unlike check_ded/mergeform/
-    # subform/multiform), so D and [2]H formulas normalize to visibly
-    # different strings and (very slightly) different masses -- the D and
-    # [2]H rows of `isotopes` carry mass values differing in their last
-    # digit. Reproduced exactly, not smoothed over.
+def test_check_chemform_d_canonicalized_to_deuterium():
+    # Issue #14: check_chemform now substitutes D -> [2]H at the top
+    # level too (previously only its internal bracket-multiplier helper
+    # did, matching R -- see test below), so a top-level D formula now
+    # normalizes identically to its [2]H spelling instead of being looked
+    # up as D's own (slightly different) isotopes row. This diverges from
+    # R by design (R is left unchanged; see module docstring).
     got = check_chemform(data.isotopes, ["D2O1", "[2]H2O1"])
-    assert list(got["new_formula"]) == ["D2O1", "[2]H2O1"]
-    assert got["monoisotopic_mass"].iloc[0] != got["monoisotopic_mass"].iloc[1]
+    assert list(got["new_formula"]) == ["[2]H2O1", "[2]H2O1"]
+    assert got["monoisotopic_mass"].iloc[0] == got["monoisotopic_mass"].iloc[1]
+
+    # check_chemform/case_002.csv rows 8/9 (see test_..._case_002_edge_cases
+    # above, which skips these two indices): R's frozen reference is
+    # "D2H2O1"/22.038768244 and
+    # "[13]C2C8D2H8[15]N2N2[18]O2O3"/276.086944496; this port now reports
+    # the canonicalized values below instead.
+    got2 = check_chemform(
+        data.isotopes, ["D2H2O1", "[13]C2C8D2H8[15]N2N2[18]O2O3"]
+    )
+    assert list(got2["new_formula"]) == [
+        "[2]H2H2O1",
+        "[13]C2C8[2]H2H8[15]N2N2[18]O2O3",
+    ]
+    assert got2["monoisotopic_mass"].iloc[0] == 22.03876824
+    assert got2["monoisotopic_mass"].iloc[1] == 276.086944492
 
 
 def test_check_chemform_d_inside_bracket_group_is_substituted():
-    # R quirk, reproduced verbatim: check_chemform's internal
-    # bracket-multiplier helper *does* substitute D -> [2]H, so "(D2)3"
-    # normalizes to "[2]H6", not "D6" (verified directly against R).
+    # check_chemform's internal bracket-multiplier helper substitutes
+    # D -> [2]H, matching R here (verified directly against R), so "(D2)3"
+    # normalizes to "[2]H6", not "D6" -- now consistent with the top
+    # level's own D -> [2]H substitution too (issue #14, previous test).
     got = check_chemform(data.isotopes, ["(D2)3"])
     assert got["new_formula"].iloc[0] == "[2]H6"
 
@@ -227,9 +333,17 @@ def test_subform_case_004_failure_message_paths():
         assert got == row["result"]
 
 
-def test_check_ded_case_006_d_normalized_to_plain_h():
+def test_check_ded_case_006_valid_pairs():
+    # Row 4 ("C4D10"/"C4H10") contains a literal "D" in `formula` and no
+    # longer matches this golden (R) reference: issue #14 canonicalized
+    # check_ded's `formulas` argument to substitute D -> [2]H like
+    # `deduct` already did, instead of R's D -> plain H. Its divergent,
+    # canonicalized result is asserted directly in
+    # test_check_ded_d_canonicalized_to_deuterium below instead.
     df = _read_golden(GOLDEN_ALGEBRA / "case_006.csv")
-    for _, row in df.iterrows():
+    for i, row in df.iterrows():
+        if row["formula"] == "C4D10":
+            continue
         got = check_ded([row["formula"]], row["deduct"])[0]
         assert got == row["warning"]
 
@@ -251,12 +365,18 @@ def test_multiform_case_005():
 # ---------------------------------------------------------------------------
 
 
-def test_check_ded_d_asymmetry():
-    # check_ded substitutes D -> [2]H in `deduct` but D -> plain H in each
-    # of `formulas` (R/check_ded.R lines 29 vs 87) -- a deliberate
-    # asymmetry preserved here, not a bug in this port.
-    assert check_ded(["C4D10"], "C4H10") == [False]  # D read as H: contained
-    assert check_ded(["C4H10"], "C4D10") == [True]  # D read as [2]H: not contained
+def test_check_ded_d_canonicalized_to_deuterium():
+    # R's check_ded substitutes D -> [2]H in `deduct` but D -> plain H in
+    # each of `formulas` (R/check_ded.R lines 29 vs 87), so
+    # check_ded(["C4D10"], "C4H10") is False in R (deduct's H10 read
+    # against the formula's own D-as-H10: contained). Issue #14
+    # canonicalized `formulas` to also substitute D -> [2]H, so both
+    # sides now treat D as deuterium consistently: neither direction is
+    # "contained" any more, since plain H and [2]H are different symbols.
+    # formula_algebra/case_006.csv row 4 records R's (now superseded for
+    # this row) "C4D10"/"C4H10" -> FALSE; see the test above.
+    assert check_ded(["C4D10"], "C4H10") == [True]  # diverges from R (R: False)
+    assert check_ded(["C4H10"], "C4D10") == [True]  # matches R (deduct side unaffected)
 
 
 def test_d_substitution_does_not_clobber_longer_symbols():
@@ -267,10 +387,12 @@ def test_d_substitution_does_not_clobber_longer_symbols():
     # isotopes): mergeform("C1H4", "Dy1") used to return "C1H4[2]Hy1".
     # Only R's multiform guarded against this (D(?![a-z])). This port now
     # applies that same guard everywhere a D substitution happens -- a
-    # bug fix, not a behavioural port decision (see module docstring and
-    # issue #14, which covers the separate, bigger question of whether
-    # D -> [2]H/H/nothing should also be made consistent across
-    # functions).
+    # bug fix, not a behavioural port decision. (Issue #14 covers the
+    # separate, bigger question of whether D -> [2]H/H/nothing should
+    # also be made consistent across functions -- resolved by
+    # canonicalizing to [2]H everywhere, see
+    # test_check_chemform_d_canonicalized_to_deuterium /
+    # test_check_ded_d_canonicalized_to_deuterium above.)
     assert mergeform("C1H4", "Dy1") == ["C1H4Dy1"]
     assert mergeform("Dy1", "C1H4") == ["Dy1C1H4"]
     assert subform("C1H4Dy1", "Dy1") == ["C1H4"]
