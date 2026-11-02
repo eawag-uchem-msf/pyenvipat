@@ -1,7 +1,6 @@
 """Check for overlapping molecules.
 
-Port of R's ``check_several`` (``R/check_several.R``) -- issue #8 of the R
--> Python port. Screens isotope fine structures (from
+Port of R's ``check_several``. Screens isotope fine structures (from
 :func:`envipat.isopattern.isopattern`) or envelope centroids/intensoids
 (from :func:`envipat.vdetect.vdetect`) for m/z overlaps between different
 compounds, within a tolerance window (absolute m/z or ppm).
@@ -18,17 +17,17 @@ that other compound's peaks.
 Known R bug -- deliberately fixed here, not reproduced
 --------------------------------------------------------
 R's ``ppm==TRUE`` branch has a stray trailing comma in one of its four
-``paste0()`` calls (``R/check_several.R``, the second ``get3[...]``
-update): ``paste0(get3[getit1[i - 1]], getit3[i], "/",)``. R's parser
-accepts a trailing comma as an *empty* (missing) argument rather than a
-syntax error, but ``paste0`` then raises ``"argument is missing, with no
-default"`` the moment it actually tries to evaluate that missing
-argument -- which happens on the very first overlap found while
-``ppm=TRUE``. In other words, ``check_several(..., ppm=TRUE)`` is not
-merely "a bit buggy": it hard-errors on *every* input where an overlap
-exists, i.e. on the one condition the function exists to report. Golden
-fixture ``tests/golden/check_several/case_004.csv`` captures this: R's own
-``check_several(pat_overlap, dmz=50, ppm=TRUE)`` errors with exactly
+``paste0()`` calls (the second ``get3[...]`` update):
+``paste0(get3[getit1[i - 1]], getit3[i], "/",)``. R's parser accepts a
+trailing comma as an *empty* (missing) argument rather than a syntax
+error, but ``paste0`` then raises ``"argument is missing, with no
+default"`` the moment it actually tries to
+evaluate that missing argument -- which happens on the very first overlap
+found while ``ppm=TRUE``. In other words, ``check_several(..., ppm=TRUE)``
+is not merely "a bit buggy": it hard-errors on *every* input where an
+overlap exists, i.e. on the one condition the function exists to report.
+Golden fixture ``tests/golden/check_several/case_004.csv`` captures this:
+R's own ``check_several(pat_overlap, dmz=50, ppm=TRUE)`` errors with exactly
 ``"argument is missing, with no default"`` instead of producing a normal
 output table.
 
@@ -91,7 +90,7 @@ __all__ = ["check_several"]
 def check_several(pattern: Mapping, dmz: float, ppm: bool = True) -> pd.DataFrame:
     """Check for m/z overlaps between different compounds' peaks.
 
-    Port of R's ``check_several`` (``R/check_several.R``).
+    Port of R's ``check_several``.
 
     Parameters
     ----------

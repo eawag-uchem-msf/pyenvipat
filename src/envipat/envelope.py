@@ -1,22 +1,20 @@
 """Isotope pattern envelope (profile) calculation.
 
-Port of R's ``envelope`` (``R/envelope.R``) -- issue #8 of the R -> Python
-port. Convolutes an isotope pattern (from :func:`envipat.isopattern.isopattern`)
-with a peak shape function (Gaussian or Cauchy-Lorentz) into a discretized
-theoretical profile, by calling ``envipat._core.enviPat_py.ppm_trace`` and
-``profile_with_trace`` (issue #5's Python bindings of the same
-``iso_core.c`` algorithms R's ``iso_ppm_Call``/``iso_profile_with_trace_Call``
-``.Call`` entry points delegate to).
+Port of R's ``envelope``. Convolutes an isotope pattern (from
+:func:`envipat.isopattern.isopattern`) with a peak shape function (Gaussian
+or Cauchy-Lorentz) into a discretized theoretical profile, by calling
+``envipat._core.enviPat_py.ppm_trace`` and ``profile_with_trace`` (Python
+bindings of the original ``iso_core.c`` algorithms).
 
 Mass trace construction
 ------------------------
 R builds the mass trace ("stick" positions) three different ways,
 depending on ``ppm``/``dmz``:
 
-- ``ppm=True``: via the C entry point directly (``iso_ppm_Call`` / here,
-  ``_core.ppm_trace``) -- no ``seq()`` involved, so this branch is exact
-  (same core, same inputs) up to the ``rtol=1e-12`` bound this module's
-  results are verified at overall (see module docstring below).
+- ``ppm=True``: via the C core directly (``_core.ppm_trace``) -- no
+  ``seq()`` involved, so this branch is exact (same core, same inputs) up to
+  the ``rtol=1e-12`` bound this module's results are verified at overall
+  (see module docstring below).
 - ``ppm=False, dmz`` numeric: ``seq(min(m) - 0.5, max(m) + 0.5, dmz)``.
 - ``ppm=False, dmz="get"``: derives the step from ``resolution`` --
   ``dmz2 = mean(m) / resolution``; ``seq(min(m) - 1, max(m) + 0.5,
@@ -25,7 +23,7 @@ depending on ``ppm``/``dmz``:
 The two ``seq()``-based branches are reproduced via :func:`envipat._rseq.r_seq`
 (see that module for why this is a semantic, not bit-exact, port of R's
 ``seq.default`` -- this is *the* known source of floating-point divergence
-from R flagged in issue #8's scope, which is why ``envelope``/``vdetect``
+from R, which is why ``envelope``/``vdetect``
 are verified at ``rtol=1e-12`` rather than exact match, unlike
 ``isopattern``).
 
@@ -35,8 +33,7 @@ Returns ``dict[str, pandas.DataFrame | str]`` keyed like the input
 ``pattern`` dict, each DataFrame with two columns, ``"m/z"`` and
 ``"abundance"``. As in R (and :func:`envipat.isopattern.isopattern`), an
 empty/erroring convolution result is reported as the literal string
-``"error"`` for that entry (``R/envelope.R``:
-``if(length(out[[1]])==0){profiles[[i]]<-"error"}``), covering both a
+``"error"`` for that entry, covering both a
 raised ``EnviPatCoreError`` and a legitimate zero-length result.
 """
 
@@ -67,7 +64,7 @@ def envelope(
 ):
     """Convolute isotope pattern(s) into their theoretical envelope profile(s).
 
-    Port of R's ``envelope`` (``R/envelope.R``).
+    Port of R's ``envelope``.
 
     Parameters
     ----------

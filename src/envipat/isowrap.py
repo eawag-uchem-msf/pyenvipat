@@ -1,24 +1,20 @@
 """Combined (batch) calculation of isotope pattern, envelope and centroids.
 
-Port of R's ``isowrap`` (``R/isowrap.R``) -- issue #8 of the R -> Python
-port. Composes :func:`envipat.isopattern.isopattern`,
+Port of R's ``isowrap``. Composes :func:`envipat.isopattern.isopattern`,
 :func:`envipat.envelope.envelope` and :func:`envipat.vdetect.vdetect`.
 
-``resolution`` is explicit for now, ``getR`` integration is issue #9's job
-------------------------------------------------------------------------
+``resolution`` is explicit
+--------------------------
 R's ``isowrap`` takes a calibration table (``resmass``) plus ``nknots``/
 ``spar``, and calls ``getR`` internally to interpolate a per-formula
 resolution from it whenever ``resmass`` is given (``resolution=FALSE``
-means "use ``getR``"; a numeric ``resolution`` bypasses it). Per issue #8's
-own scope note, that integration is deferred to issue #9 (its Python port
-of ``getR``, ``envipat.resolution.get_resolution`` on branch
-``9-port-getr-smoothing-spline``/MR !6, is *not* merged into this branch --
-this module does not import or depend on it). This port's ``isowrap``
-therefore drops ``resmass``/``nknots``/``spar`` entirely and only accepts
+means "use ``getR``"; a numeric ``resolution`` bypasses it). This port's
+``isowrap`` drops ``resmass``/``nknots``/``spar`` entirely and only accepts
 ``resolution`` directly (a single value or a per-formula sequence, passed
 straight through to :func:`envipat.envelope.envelope`) -- callers wanting
-curve-based interpolation call ``get_resolution`` themselves (once #9
-lands) and pass its result in as ``resolution``.
+curve-based interpolation call
+:func:`envipat.resolution.get_resolution` themselves and pass its result
+in as ``resolution``.
 
 Result shape
 ------------
@@ -56,7 +52,7 @@ def isowrap(
 ):
     """Run the full isopattern -> envelope -> vdetect pipeline.
 
-    Port of R's ``isowrap`` (``R/isowrap.R``); see module docstring for
+    Port of R's ``isowrap``; see module docstring for
     why ``resolution`` is explicit here rather than interpolated from a
     calibration table (``resmass``/``nknots``/``spar`` in R -- not
     ported).
