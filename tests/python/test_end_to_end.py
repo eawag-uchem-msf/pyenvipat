@@ -1,12 +1,10 @@
 """Bundled-data sanity checks.
 
-The live R-vs-Python end-to-end comparison (issue #10) was removed together
-with the R implementation (issue #11); it stays available in git history
-(``tools/dump_full_pipeline.R``). The frozen R reference lives on in
-``tests/golden/``.
+End-to-end parity with the original R package is covered by the frozen
+reference outputs in ``tests/golden/``.
 
-The bundled ``adducts.csv`` deliberately differs from the original
-``adducts.rda`` for 3 rows (``"F"``, ``"H2CO3"``, ``"H1N1H4"``, which R's
+The bundled ``adducts.csv`` deliberately differs from R's original
+``adducts`` dataset for 3 rows (``"F"``, ``"H2CO3"``, ``"H1N1H4"``, which R's
 ``mergeform`` mishandles); this checks the patched values are intact.
 
 Run after `pip install -e .`:

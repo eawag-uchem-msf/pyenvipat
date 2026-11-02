@@ -3,7 +3,7 @@
 
 Golden-fixture tests compare against tests/golden/check_chemform/*.csv and
 tests/golden/formula_algebra/*.csv, frozen from the real R package (v2.8)
-in issue #3 (see tools/make_golden.R). String output is required to match
+in issue #3. String output is required to match
 R exactly; monoisotopic mass is required to match exactly (see the
 float_precision="round_trip" fix in envipat/data.py -- pandas' default CSV
 float parser silently drops precision on ~1/4 of the isotopes table's
@@ -15,16 +15,15 @@ being ported) were found to be internally inconsistent -- see the
 "Known R quirks" tests below and the MR description for the full writeup:
 
 - R's check_ded/mergeform/subform/multiform tokenizers require every
-  element to be followed by an explicit count; R's own data/adducts.rda
+  element to be followed by an explicit count; R's own adducts dataset
   ships two Formula_add values missing one ("F", "H2CO3"), and R either
   loops forever or silently mis-tokenizes on them. This port raises
   promptly instead. Note: the exported src/envipat/data/adducts.csv this
-  port actually reads has since been patched to "F1"/"H2C1O3" by
-  tools/export_data.R (see MR !7) -- the source .rda is deliberately left
-  broken, so R and Python diverge on these two adducts rows. The tests
+  port actually reads has been patched to "F1"/"H2C1O3" (see MR !7), so
+  R and Python diverge on these two adducts rows. The tests
   below exercise the malformed strings directly (not via the CSV) to keep
   the general "reject missing explicit count" behaviour under regression.
-- R's own data/adducts.rda "M+H+NH4" entry (Formula_add "H1N1H4") has a
+- R's own adducts "M+H+NH4" entry (Formula_add "H1N1H4") has a
   duplicated, un-merged "H" token; R's mergeform doesn't deduplicate a
   formula's own tokens before merging, which trips a vector-recycling bug
   that silently corrupts *all* elements processed after the duplicate.
@@ -367,7 +366,7 @@ def test_multiform_case_005():
 
 def test_check_ded_d_canonicalized_to_deuterium():
     # R's check_ded substitutes D -> [2]H in `deduct` but D -> plain H in
-    # each of `formulas` (R/check_ded.R lines 29 vs 87), so
+    # each of `formulas`, so
     # check_ded(["C4D10"], "C4H10") is False in R (deduct's H10 read
     # against the formula's own D-as-H10: contained). Issue #14
     # canonicalized `formulas` to also substitute D -> [2]H, so both
@@ -404,8 +403,8 @@ def test_d_substitution_does_not_clobber_longer_symbols():
 def test_flat_helpers_reject_missing_explicit_count(malformed):
     # R's mergeform/subform/check_ded/multiform tokenizer requires every
     # element to be followed by an explicit digit count; these two values
-    # are the malformed Formula_add entries R's own data/adducts.rda still
-    # ships (deliberately left unfixed there, see MR !7) -- R either loops
+    # are the malformed Formula_add entries R's own adducts dataset ships
+    # (see MR !7) -- R either loops
     # forever ("F": Formula_add of the M+F adduct) or silently
     # mis-tokenizes ("H2CO3": Formula_add of M+H2CO3-H, "C" and "O" glue
     # into one bogus "CO" pseudo-element). This port raises promptly, and
@@ -417,8 +416,8 @@ def test_flat_helpers_reject_missing_explicit_count(malformed):
 
 
 def test_mergeform_rejects_repeated_element_in_one_formula():
-    # R's own data/adducts.rda "M+H+NH4" entry has Formula_add "H1N1H4"
-    # (H appears twice, unmerged; left unfixed in the .rda, see MR !7).
+    # R's own adducts "M+H+NH4" entry has Formula_add "H1N1H4"
+    # (H appears twice, unmerged; see MR !7).
     # R's mergeform doesn't merge a formula's own repeated tokens before
     # combining, which trips a vector-recycling bug: it1 + it2 becomes a
     # length>1 vector for the repeated element, desynchronizing every

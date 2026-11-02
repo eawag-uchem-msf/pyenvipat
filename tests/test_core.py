@@ -1,6 +1,6 @@
 """Golden-fixture regression tests for envipat._core.enviPat_py.
 
-Compares the compiled C extension's output against the .Call-level golden
+Compares the compiled C extension's output against the C-level golden
 fixtures frozen in tests/golden/c_direct/ (issue #3): same inputs, same
 compiled algorithm code (iso_core.c and the vendored algorithm files under
 src/envipat/_core/, unmodified except for one disclosed preferences.h edit
@@ -147,8 +147,8 @@ def test_profile_with_trace_matches_golden(case_id):
 # --------------------------------------------------------------------- #
 
 # case_023..case_025's manifest "input_file" (case_011.csv, a bare ppm mz
-# trace with no abundance column at all) does not match what
-# tools/make_golden.R actually fed iso_centroid_Call for those cases -- the
+# trace with no abundance column at all) does not match what the fixture
+# generator actually fed the centroid entry point for those cases -- the
 # in-memory profile from its own case_017 run (type1=0/filter=1/t1=0). This
 # is a provenance-metadata mislabel in the #3 fixture generator script, not
 # a defect in the golden output values themselves (those were written from
