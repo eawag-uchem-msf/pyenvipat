@@ -1,0 +1,506 @@
+"""Golden-fixture regression tests for issue #8's pipeline port:
+isopattern, envelope, vdetect, check_several, isowrap.
+
+Golden fixtures were frozen from the real R package (v2.8) in issue #3
+(``tools/make_golden.R``, ``tests/golden/<fn>/cases.csv`` + per-case
+output CSVs). Each fixture file was written by stacking every input
+formula's own (possibly differently-shaped) result table into one CSV via
+that script's ``stack_pattern_list()``/``rbind_fill()`` helpers -- a
+union of every formula's columns, NA-filled for formulas that don't have
+a given column. :func:`_split_by_compound` below reverses that: it
+regroups the stacked table back into one frame per compound (columns
+aligned by *name*, not position, since the union/NA-fill process can
+interleave columns in a different relative order than any single
+formula's own call would produce -- see that function's docstring).
+
+Tolerance policy (per issue #8's own scope):
+
+- ``isopattern``: exact match. Same compiled ``iso_core`` algorithm as R
+  (issue #5's Python bindings), same inputs -- no floating-point
+  operation in between other than R-identical charge/emass arithmetic
+  and a stable sort, so there is no principled reason to allow any
+  slack, and none is given (``np.testing.assert_array_equal``/exact
+  string equality).
+- ``envelope``/``vdetect``: ``rtol=1e-12``. The R idiom this porrts
+  builds mass traces with base R's ``seq(from, to, by)``
+  (:func:`envipat._rseq.r_seq`); that is a semantic, not bit-exact, port
+  (see that module's docstring) -- issue #8 explicitly calls this out as
+  "a known source of floating-point divergence from R's evaluator".
+  Measured deviations across the full envelope/vdetect case matrix are
+  reported in the MR description (all comfortably under 1e-12, generally
+  1e-14 to 1e-15 -- i.e. a handful of ULPs, not a real tolerance need).
+- ``check_several``: exact match, except the one case that exercises R's
+  known ``ppm=TRUE`` trailing-comma bug (see
+  ``envipat.check_several``'s module docstring for the fix-vs-reproduce
+  decision) -- that case has no numeric golden target (R itself errored
+  instead of producing one) and is asserted not to raise instead.
+- ``isowrap``: same ``rtol=1e-12`` as envelope/vdetect (it composes both).
+  Since issue #8's ``isowrap`` takes ``resolution`` explicitly rather than
+  interpolating it from a calibration table (``getR`` integration is
+  issue #9's job, not merged into this branch -- see
+  ``envipat.isowrap``'s module docstring), the golden isowrap fixtures'
+  per-formula resolutions (originally computed by R's ``isowrap`` calling
+  ``getR`` internally) are recomputed once, out of band, by asking the
+  *installed R package itself* for them (``tools/dump_isowrap_resolution.R``,
+  same pattern as issue #5's ``tools/dump_isotopes_precise.R``) and fed
+  in as the explicit ``resolution`` argument -- this does not import or
+  depend on issue #9's Python port at all. Skips (not fails) when
+  Rscript / the installed R package aren't available, exactly like
+  ``tests/test_core.py``'s ``full_isotopes`` fixture.
+
+Run inside the dev container, after `pip install -e .`:
+    pytest tests/python/test_pipeline.py
+"""
+
+from __future__ import annotations
+
+import csv
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pytest
+
+import envipat.data as data
+from envipat.check_several import check_several
+from envipat.envelope import envelope
+from envipat.formula import check_chemform
+from envipat.isopattern import isopattern
+from envipat.isowrap import isowrap
+from envipat.vdetect import vdetect
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+GOLDEN = REPO_ROOT / "tests" / "golden"
+
+ISOTOPES = data.isotopes
+CHEMFORMS = list(data.chemforms)
+
+
+# --------------------------------------------------------------------- #
+# golden fixture I/O helpers
+# --------------------------------------------------------------------- #
+
+
+def _parse_params(params: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for part in params.split(";"):
+        if not part:
+            continue
+        k, v = part.split("=", 1)
+        out[k] = v
+    return out
+
+
+def _load_cases(section: str) -> dict[str, dict[str, str]]:
+    with (GOLDEN / section / "cases.csv").open(newline="") as f:
+        return {row["case_id"]: row for row in csv.DictReader(f)}
+
+
+def _read_stacked_csv(path: Path) -> pd.DataFrame:
+    # float_precision="round_trip": these fixtures were written with
+    # sprintf("%.17g", .) to round-trip every double bit-exactly (see
+    # tools/make_golden.R); pandas' default C float parser silently drops
+    # the last 1-2 bits on some rows for 17-significant-digit strings --
+    # exactly the pitfall already documented and fixed for envipat.data's
+    # isotopes.csv/adducts.csv loaders (see that module). isopattern's
+    # golden comparison is an *exact* match, so this matters here more
+    # than anywhere else in this file.
+    #
+    # A formula that mixes a labelled isotope with that same element's
+    # natural form makes rbind_fill() emit two genuinely duplicate-named
+    # columns (e.g. two "13C" columns -- see issue #15 and
+    # envipat.isopattern's own module docstring, which does the same:
+    # `pd.DataFrame(..., columns=result["isotope_names"])` keeps literal
+    # duplicate labels, not "13C"/"13C.1"). pandas.read_csv's header
+    # parser always mangles duplicate header names into "13C"/"13C.1" --
+    # that would desync the golden columns from what isopattern() itself
+    # returns, so the header is read separately and reapplied as-is.
+    header = next(csv.reader(path.open(newline="")))
+    df = pd.read_csv(path, float_precision="round_trip", header=0)
+    df.columns = header
+    return df
+
+
+def _split_by_compound(df: pd.DataFrame) -> dict[str, object]:
+    """Reverses tools/make_golden.R's stack_pattern_list()/rbind_fill():
+    regroups a stacked golden fixture table back into one value per
+    compound, in first-appearance order.
+
+    Columns are aligned by *name*: rbind_fill's column union can end up
+    interleaving different formulas' isotope columns in a different
+    relative order than any single formula's own isopattern() call would
+    produce for itself (e.g. a later formula whose own element-parse
+    order disagrees with the order an earlier formula already fixed in
+    the union) -- callers must compare by column name, not position, and
+    this returns each compound's own (non-NA) columns already reindexed
+    that way (in the union's left-to-right order, which is a superset of,
+    not necessarily identical to, that compound's own natural order --
+    hence "align by name" on both sides of every comparison below).
+    """
+    out: dict[str, object] = {}
+    for compound, group in df.groupby("compound", sort=False):
+        if bool(group["error"].iloc[0]):
+            out[compound] = "error"
+            continue
+        # dict.fromkeys: dedupe by label while preserving first-seen order.
+        # A duplicate-named label (e.g. two "13C" columns) must appear only
+        # once in the selector -- selecting a duplicate label N times from
+        # a frame that already has N matching physical columns would index
+        # by the cross product (N*N columns), not return them once each.
+        cols = list(dict.fromkeys(c for c in df.columns if c not in ("compound", "error")))
+        sub = group[cols].dropna(axis=1, how="all").reset_index(drop=True)
+        out[compound] = sub
+    return out
+
+
+def _assert_profile_dict_matches(got: dict, expected: dict, *, rtol: float) -> None:
+    assert set(got) == set(expected)
+    for name, exp in expected.items():
+        g = got[name]
+        if isinstance(exp, str):
+            assert g == exp, f"{name}: expected {exp!r}, got {g!r}"
+            continue
+        assert not isinstance(g, str), f"{name}: expected a DataFrame, got {g!r}"
+        np.testing.assert_allclose(g["m/z"].to_numpy(), exp["m/z"].to_numpy(), rtol=rtol)
+        np.testing.assert_allclose(g["abundance"].to_numpy(), exp["abundance"].to_numpy(), rtol=rtol)
+
+
+# --------------------------------------------------------------------- #
+# Shared formula pools -- replicates tools/make_golden.R's pool10/pool3/
+# pool5 construction (see that script's "Shared formula pools" section)
+# using this port's own (issue #7, already golden-verified exact) check_
+# chemform, rather than asking R for them -- cross-checked once against
+# a direct Rscript dump to confirm this reproduces the same 10 formulas
+# in the same order (see MR description).
+# --------------------------------------------------------------------- #
+
+
+def _build_pool10() -> list[str]:
+    ck_all = check_chemform(ISOTOPES, CHEMFORMS)
+    mass = ck_all["monoisotopic_mass"].to_numpy(dtype=np.float64)
+    order = np.argsort(mass, kind="stable")  # R's order(): stable radix sort
+    n = len(CHEMFORMS)
+
+    idx_min = order[0]
+    idx_max = order[-1]
+    idx_med = order[round(n / 2) - 1]
+    idx_q1 = order[round(n / 4) - 1]
+    cl_heavy = next(f for f in CHEMFORMS if re.search("Cl[2-9]", f))
+    br_heavy = next(f for f in CHEMFORMS if re.search("Br[1-9]", f))
+
+    candidates = [
+        CHEMFORMS[idx_min],
+        CHEMFORMS[idx_max],
+        CHEMFORMS[idx_med],
+        CHEMFORMS[idx_q1],
+        cl_heavy,
+        br_heavy,
+        "C1H4",
+        "C50H80N10O15S2",
+        "[13]C2C8D2H8[15]N2N2[18]O2O3",
+        "C20Cl10",
+    ]
+    return list(dict.fromkeys(candidates))  # R's unique(): first-occurrence order
+
+
+POOL10 = _build_pool10()
+POOL3 = [POOL10[0], POOL10[6], POOL10[8]]
+POOL5 = POOL10[:5]
+
+
+# --------------------------------------------------------------------- #
+# isopattern
+# --------------------------------------------------------------------- #
+
+ISOPATTERN_CASES = _load_cases("isopattern")
+
+
+def _formulas_for_isopattern_case(row: dict[str, str]) -> list[str]:
+    p = _parse_params(row["params"])
+    n = int(p["n_formulas"])
+    if row["notes"] == "threshold_0_full_fine_structure":
+        return ["C1H4", POOL10[0]]
+    if n == len(POOL10):
+        return POOL10
+    if n == len(CHEMFORMS):
+        return CHEMFORMS
+    raise AssertionError(f"{row['case_id']}: unexpected n_formulas={n}")
+
+
+def _charge_for_isopattern_case(p: dict[str, str]):
+    c = p["charge"]
+    if c == "FALSE":
+        return False
+    if "/" in c:
+        return [int(x) for x in c.split("/")]
+    return int(c)
+
+
+@pytest.mark.parametrize("case_id", sorted(ISOPATTERN_CASES))
+def test_isopattern_matches_golden(case_id):
+    row = ISOPATTERN_CASES[case_id]
+    p = _parse_params(row["params"])
+    formulas = _formulas_for_isopattern_case(row)
+    charge = _charge_for_isopattern_case(p)
+
+    got = isopattern(
+        ISOTOPES,
+        formulas,
+        threshold=float(p["threshold"]),
+        charge=charge,
+        algo=int(p["algo"]),
+        rel_to=int(p["rel_to"]),
+        verbose=False,
+    )
+
+    expected = _split_by_compound(_read_stacked_csv(GOLDEN / "isopattern" / row["output_file"]))
+    assert set(got) == set(expected)
+
+    for name, exp in expected.items():
+        g = got[name]
+        if isinstance(exp, str):
+            assert g == exp
+            continue
+        assert not isinstance(g, str), f"{name}: expected a DataFrame, got {g!r}"
+        np.testing.assert_array_equal(g["m/z"].to_numpy(), exp["m/z"].to_numpy())
+        np.testing.assert_array_equal(g["abundance"].to_numpy(), exp["abundance"].to_numpy())
+
+        # dict.fromkeys: a formula mixing a labelled isotope with that same
+        # element's natural form gives rbind_fill() (and isopattern() itself)
+        # two genuinely duplicate-named columns (e.g. two "13C" columns --
+        # see issue #15); dedupe by label so each name is only selected
+        # once below (`g[col]`/`exp[col]` already returns *all* same-named
+        # columns for a duplicate label, in that formula's own tokenizing
+        # order on both sides -- see _read_stacked_csv/_split_by_compound).
+        isotope_cols = list(dict.fromkeys(c for c in exp.columns if c not in ("m/z", "abundance")))
+        assert set(isotope_cols) == set(c for c in g.columns if c not in ("m/z", "abundance"))
+        for col in isotope_cols:
+            np.testing.assert_array_equal(
+                g[col].to_numpy(dtype=np.int64), exp[col].to_numpy(dtype=np.int64)
+            )
+
+
+def test_isopattern_duplicate_formula_raises():
+    # Regression test for reviewer decision on MR !8: a duplicate input
+    # formula must raise, not silently overwrite the earlier dict entry
+    # (see envipat.isopattern's module/Raises docstring).
+    with pytest.raises(ValueError, match="C1H4"):
+        isopattern(ISOTOPES, ["C1H4", "C2H6", "C1H4"], threshold=0.1, verbose=False)
+
+
+def test_isopattern_multiple_duplicate_formulas_all_named():
+    # All duplicated formulas must be named in the error, not just the
+    # first one encountered.
+    with pytest.raises(ValueError) as excinfo:
+        isopattern(
+            ISOTOPES, ["C1H4", "C2H6", "C1H4", "C2H6", "C3H8"], threshold=0.1, verbose=False
+        )
+    assert "C1H4" in str(excinfo.value)
+    assert "C2H6" in str(excinfo.value)
+    assert "C3H8" not in str(excinfo.value)
+
+
+# --------------------------------------------------------------------- #
+# envelope
+# --------------------------------------------------------------------- #
+
+ENVELOPE_CASES = _load_cases("envelope")
+# Hardcoded to match tools/make_golden.R's dmz_modes list exactly (its
+# "abs" and "ppm" numeric dmz values -- the manifest's params only record
+# the *mode name*, not the value that generated it).
+_ENVELOPE_DMZ_ABS = 0.001
+_ENVELOPE_DMZ_PPM = 5.0
+
+
+@pytest.fixture(scope="module")
+def pattern3():
+    return isopattern(ISOTOPES, POOL3, threshold=0.1, charge=False, algo=1, verbose=False)
+
+
+def _envelope_kwargs_for_case(p: dict[str, str]) -> dict:
+    dmz_name = p["dmz"]
+    if dmz_name == "get":
+        dmz = "get"
+    elif dmz_name == "abs":
+        dmz = _ENVELOPE_DMZ_ABS
+    elif dmz_name == "ppm":
+        dmz = _ENVELOPE_DMZ_PPM
+    else:
+        raise AssertionError(f"unexpected dmz mode {dmz_name!r}")
+    return dict(ppm=p["ppm"] == "TRUE", dmz=dmz, env=p["env"], resolution=float(p["resolution"]))
+
+
+@pytest.mark.parametrize("case_id", sorted(ENVELOPE_CASES))
+def test_envelope_matches_golden(case_id, pattern3):
+    row = ENVELOPE_CASES[case_id]
+    p = _parse_params(row["params"])
+    kwargs = _envelope_kwargs_for_case(p)
+
+    got = envelope(pattern3, frac=0.25, verbose=False, **kwargs)
+    expected = _split_by_compound(_read_stacked_csv(GOLDEN / "envelope" / row["output_file"]))
+
+    _assert_profile_dict_matches(got, expected, rtol=1e-12)
+
+
+# --------------------------------------------------------------------- #
+# vdetect -- operates directly on the golden *envelope* fixture (per its
+# own cases.csv "input_file" column), isolating vdetect's own fidelity
+# from envelope's mass-trace construction.
+# --------------------------------------------------------------------- #
+
+VDETECT_CASES = _load_cases("vdetect")
+
+
+@pytest.mark.parametrize("case_id", sorted(VDETECT_CASES))
+def test_vdetect_matches_golden(case_id):
+    row = VDETECT_CASES[case_id]
+    p = _parse_params(row["params"])
+
+    input_path = (GOLDEN / "vdetect" / row["input_file"]).resolve()
+    profiles = _split_by_compound(_read_stacked_csv(input_path))
+
+    got = vdetect(profiles, detect=p["detect"], verbose=False)
+    expected = _split_by_compound(_read_stacked_csv(GOLDEN / "vdetect" / row["output_file"]))
+
+    _assert_profile_dict_matches(got, expected, rtol=1e-12)
+
+
+# --------------------------------------------------------------------- #
+# check_several
+# --------------------------------------------------------------------- #
+
+CHECK_SEVERAL_CASES = _load_cases("check_several")
+
+
+@pytest.fixture(scope="module")
+def pattern_overlap():
+    return isopattern(ISOTOPES, ["C10H10", "C9H10[13]C1"], threshold=0.1, verbose=False)
+
+
+@pytest.fixture(scope="module")
+def pattern_no_overlap():
+    return isopattern(ISOTOPES, POOL3, threshold=0.1, verbose=False)
+
+
+def _parse_golden_check_several_warning(s: str) -> bool:
+    """R's golden ``"warning"`` column holds ``""``/``"TRUE"`` strings;
+    envipat.check_several reshapes this to native bool (see its module
+    docstring) -- ``""`` means "no overlap" i.e. False, not NA."""
+    assert s in ("", "TRUE")
+    return s == "TRUE"
+
+
+def _parse_golden_check_several_index_list(s: str) -> list[int]:
+    """R's golden ``"to?"``/``"peak_number"`` columns hold ``"/"``-
+    terminated index-list strings (e.g. ``"2/2/2/"``, or ``""`` for no
+    overlap); envipat.check_several reshapes these to native
+    ``list[int]`` (``[]`` for no overlap) -- see its module docstring."""
+    if s == "":
+        return []
+    return [int(x) for x in s.split("/") if x != ""]
+
+
+@pytest.mark.parametrize("case_id", sorted(CHECK_SEVERAL_CASES))
+def test_check_several_matches_golden(case_id, pattern_overlap, pattern_no_overlap):
+    row = CHECK_SEVERAL_CASES[case_id]
+    p = _parse_params(row["params"])
+    scenario = p["scenario"]
+    dmz = float(p["dmz"])
+    ppm = p["ppm"] == "TRUE"
+    pattern = pattern_overlap if "overlap" in scenario and "no_overlap" not in scenario else pattern_no_overlap
+
+    if scenario == "ppmTRUE_overlap":
+        # Known R bug, deliberately fixed rather than reproduced -- see
+        # envipat.check_several's module docstring. R itself errors here
+        # ("argument is missing, with no default";
+        # tests/golden/check_several/case_004.csv captures that error
+        # message, not a numeric result), so there is no golden output
+        # to compare against: assert this port does *not* raise and
+        # instead returns a normal, symmetric result.
+        result = check_several(pattern, dmz=dmz, ppm=ppm)
+        assert list(result.columns) == ["compound", "warning", "to?", "peak_number"]
+        assert pd.api.types.is_bool_dtype(result["warning"])
+        assert result["warning"].any()
+        return
+
+    result = check_several(pattern, dmz=dmz, ppm=ppm)
+    assert pd.api.types.is_bool_dtype(result["warning"])
+    assert result["to?"].map(lambda v: isinstance(v, list)).all()
+    assert result["peak_number"].map(lambda v: isinstance(v, list)).all()
+
+    raw = pd.read_csv(
+        GOLDEN / "check_several" / row["output_file"], keep_default_na=False, dtype=str
+    )
+    expected = pd.DataFrame(
+        {
+            "compound": raw["compound"],
+            "warning": raw["warning"].map(_parse_golden_check_several_warning),
+            "to?": raw["to?"].map(_parse_golden_check_several_index_list),
+            "peak_number": raw["peak_number"].map(_parse_golden_check_several_index_list),
+        }
+    )
+    pd.testing.assert_frame_equal(
+        result.reset_index(drop=True), expected.reset_index(drop=True), check_dtype=False
+    )
+
+
+# --------------------------------------------------------------------- #
+# isowrap
+# --------------------------------------------------------------------- #
+
+ISOWRAP_CASES = _load_cases("isowrap")
+DUMP_ISOWRAP_RESOLUTION_SCRIPT = REPO_ROOT / "tools" / "dump_isowrap_resolution.R"
+
+
+@pytest.fixture(scope="session")
+def isowrap_resolution_table(tmp_path_factory):
+    """getR()-interpolated resolutions for POOL5, per curve -- computed by
+    the installed R package itself (see this module's docstring and
+    tools/dump_isowrap_resolution.R for why: issue #9's getR port is not
+    merged into this branch). Skips if R / the installed package aren't
+    available, mirroring tests/test_core.py's full_isotopes fixture."""
+    if shutil.which("Rscript") is None:
+        pytest.skip("Rscript not available")
+    out = tmp_path_factory.mktemp("isowrap") / "resolution.csv"
+    proc = subprocess.run(
+        ["Rscript", str(DUMP_ISOWRAP_RESOLUTION_SCRIPT), str(out)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        pytest.skip(f"could not dump isowrap resolution via R: {proc.stderr.strip()}")
+    return pd.read_csv(out, float_precision="round_trip")
+
+
+@pytest.mark.parametrize("case_id", sorted(ISOWRAP_CASES))
+def test_isowrap_matches_golden(case_id, isowrap_resolution_table):
+    row = ISOWRAP_CASES[case_id]
+    p = _parse_params(row["params"])
+    curve = p["curve"]
+
+    curve_rows = isowrap_resolution_table[isowrap_resolution_table["curve"] == curve]
+    resolution = curve_rows.set_index("formula").loc[POOL5, "resolution"].to_numpy(dtype=np.float64)
+
+    checked5 = check_chemform(ISOTOPES, POOL5)
+
+    got = isowrap(
+        ISOTOPES,
+        checked5,
+        resolution,
+        threshold=float(p["threshold"]),
+        charge=int(p["charge"]),
+        algo=int(p["algo"]),
+        ppm=False,
+        dmz="get",
+        frac=0.25,
+        env="Gaussian",
+        detect=p["detect"],
+        verbose=False,
+    )
+    expected = _split_by_compound(_read_stacked_csv(GOLDEN / "isowrap" / row["output_file"]))
+
+    _assert_profile_dict_matches(got, expected, rtol=1e-12)
