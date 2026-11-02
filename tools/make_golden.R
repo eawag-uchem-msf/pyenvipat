@@ -47,12 +47,31 @@ write_vec <- function(x, path, colname = "value") {
 rbind_fill <- function(df_list) {
     # Base-R rbind that unions columns and fills missing ones with NA -
     # isopattern's per-formula matrices have different isotope columns
-    # depending on which elements/isotopes are actually present.
-    all_cols <- unique(unlist(lapply(df_list, names)))
+    # depending on which elements/isotopes are actually present, and can
+    # themselves carry duplicate-named columns (a formula mixing a
+    # labelled isotope with that same element's natural form contributes
+    # two columns both literally named e.g. "13C" -- see issue #15).
+    # Matching columns by name alone (R's `df[, name]` semantics) would
+    # silently collapse such duplicates to a single column; instead each
+    # column is identified by (name, occurrence index within that name),
+    # so duplicate-named columns are preserved and matched positionally
+    # rather than by name.
+    col_key <- function(nm) paste0(nm, "#", ave(seq_along(nm), nm, FUN = seq_along))
+    all_names <- unlist(lapply(df_list, names))
+    all_keys <- unlist(lapply(df_list, function(df) col_key(names(df))))
+    keep <- !duplicated(all_keys)
+    all_cols <- all_names[keep]
+    all_cols_keys <- all_keys[keep]
+
     df_list2 <- lapply(df_list, function(df) {
-        missing <- setdiff(all_cols, names(df))
-        for (m in missing) df[[m]] <- NA
-        df[all_cols]
+        keys <- col_key(names(df))
+        out <- as.data.frame(matrix(NA, nrow = nrow(df), ncol = length(all_cols_keys)),
+            stringsAsFactors = FALSE)
+        names(out) <- all_cols
+        for (i in seq_along(keys)) {
+            out[[match(keys[i], all_cols_keys)]] <- df[[i]]
+        }
+        out
     })
     do.call(rbind, df_list2)
 }

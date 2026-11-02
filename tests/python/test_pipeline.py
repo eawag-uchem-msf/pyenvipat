@@ -58,7 +58,6 @@ import csv
 import re
 import shutil
 import subprocess
-from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -66,7 +65,6 @@ import pandas as pd
 import pytest
 
 import envipat.data as data
-from envipat._core import enviPat_py as _core
 from envipat.check_several import check_several
 from envipat.envelope import envelope
 from envipat.formula import check_chemform
@@ -110,7 +108,20 @@ def _read_stacked_csv(path: Path) -> pd.DataFrame:
     # isotopes.csv/adducts.csv loaders (see that module). isopattern's
     # golden comparison is an *exact* match, so this matters here more
     # than anywhere else in this file.
-    return pd.read_csv(path, float_precision="round_trip")
+    #
+    # A formula that mixes a labelled isotope with that same element's
+    # natural form makes rbind_fill() emit two genuinely duplicate-named
+    # columns (e.g. two "13C" columns -- see issue #15 and
+    # envipat.isopattern's own module docstring, which does the same:
+    # `pd.DataFrame(..., columns=result["isotope_names"])` keeps literal
+    # duplicate labels, not "13C"/"13C.1"). pandas.read_csv's header
+    # parser always mangles duplicate header names into "13C"/"13C.1" --
+    # that would desync the golden columns from what isopattern() itself
+    # returns, so the header is read separately and reapplied as-is.
+    header = next(csv.reader(path.open(newline="")))
+    df = pd.read_csv(path, float_precision="round_trip", header=0)
+    df.columns = header
+    return df
 
 
 def _split_by_compound(df: pd.DataFrame) -> dict[str, object]:
@@ -134,7 +145,12 @@ def _split_by_compound(df: pd.DataFrame) -> dict[str, object]:
         if bool(group["error"].iloc[0]):
             out[compound] = "error"
             continue
-        cols = [c for c in df.columns if c not in ("compound", "error")]
+        # dict.fromkeys: dedupe by label while preserving first-seen order.
+        # A duplicate-named label (e.g. two "13C" columns) must appear only
+        # once in the selector -- selecting a duplicate label N times from
+        # a frame that already has N matching physical columns would index
+        # by the cross product (N*N columns), not return them once each.
+        cols = list(dict.fromkeys(c for c in df.columns if c not in ("compound", "error")))
         sub = group[cols].dropna(axis=1, how="all").reset_index(drop=True)
         out[compound] = sub
     return out
@@ -196,77 +212,6 @@ POOL5 = POOL10[:5]
 
 
 # --------------------------------------------------------------------- #
-# Known issue #3 golden-fixture bug: tools/make_golden.R's rbind_fill()
-# silently drops data for any formula that mixes a labelled isotope (a
-# "[NN]Elem" or "D" token) with that *same* element's natural, multi-
-# isotope form -- e.g. "C14H10N2O1[13]C1D2" (natural C14/H10 alongside
-# labelled [13]C1/D2). Both the labelled pseudo-element and the natural
-# element contribute a column with the *same* isotope-name string (here,
-# "13C" and "2H" each twice) -- confirmed directly against a raw R 4.6.1
-# .Call (`colnames(as.data.frame(out2))` lists "13C" twice for this
-# formula) -- so this is not an envipat._core or Python-port bug: our
-# bindings return the exact same duplicate-named list (see
-# _duplicate_isotope_columns below and envipat.isopattern's
-# compound_sorted columns for any of these formulas).
-#
-# The bug is in the *fixture generator*: rbind_fill() builds
-# `all_cols <- unique(unlist(lapply(df_list, names)))` and then selects
-# `df[all_cols]` for every formula. `unique()` collapses each duplicate
-# name to one entry in `all_cols`, and R's `df[, name]`-by-name selection
-# then silently returns only the *first* matching column -- discarding
-# the natural element's (varying) substitution-count column and
-# duplicating the labelled column's (constant) value in its place, for
-# every peak. Confirmed by hand against
-# tests/golden/isopattern/case_001.csv: this compound's "13C"/"2H"/"15N"/
-# "18O" columns are all constant (2) across every peak, while the
-# algorithm's own (correct, non-stacked) output for the same formula has
-# the natural-element columns genuinely varying (0/1/2...) -- see MR
-# description for the full trace, including the direct-.Call comparison
-# used to confirm this is a fixture bug, not a core-algorithm or
-# Python-port bug.
-#
-# Rather than hand-list every affected formula (there turn out to be many
-# -- any deuterium-labelled formula in the base 107 data(chemforms)
-# collides on "2H" the same way), this is detected programmatically below
-# for every formula this test file actually uses (POOL10 and the full
-# data(chemforms) list), by asking envipat._core itself which isotope
-# names it returns more than once for a given formula. m/z and abundance
-# are untouched (they aren't name-collided) and are still checked
-# normally for every affected compound; only the specific colliding
-# columns' *values* are skipped for that compound -- everything else,
-# including that the columns exist at all, is still checked.
-# --------------------------------------------------------------------- #
-
-
-def _duplicate_isotope_columns(formula: str) -> set[str]:
-    """Isotope-name columns envipat._core.pattern_algo1 returns more than
-    once for `formula` -- see the block comment above."""
-    elem = ISOTOPES.iloc[:, 0].astype(str).tolist()
-    iso_name = ISOTOPES.iloc[:, 1].astype(str).tolist()
-    iso_mass = ISOTOPES.iloc[:, 2].to_numpy(dtype=np.float64)
-    iso_abu = ISOTOPES.iloc[:, 3].to_numpy(dtype=np.float64)
-    result = _core.pattern_algo1(
-        sum=formula,
-        peak_limit=int(1e6),
-        threshold=0.1,
-        rel_to_mono=0,
-        iso_list_elem=elem,
-        iso_list_iso=iso_name,
-        iso_list_mass=iso_mass,
-        iso_list_abu=iso_abu,
-    )
-    counts = Counter(result["isotope_names"])
-    return {name for name, n in counts.items() if n > 1}
-
-
-_KNOWN_DUPLICATE_NAME_BUG = {
-    formula: dup
-    for formula in dict.fromkeys([*POOL10, *CHEMFORMS])
-    if (dup := _duplicate_isotope_columns(formula))
-}
-
-
-# --------------------------------------------------------------------- #
 # isopattern
 # --------------------------------------------------------------------- #
 
@@ -323,12 +268,16 @@ def test_isopattern_matches_golden(case_id):
         np.testing.assert_array_equal(g["m/z"].to_numpy(), exp["m/z"].to_numpy())
         np.testing.assert_array_equal(g["abundance"].to_numpy(), exp["abundance"].to_numpy())
 
-        isotope_cols = [c for c in exp.columns if c not in ("m/z", "abundance")]
+        # dict.fromkeys: a formula mixing a labelled isotope with that same
+        # element's natural form gives rbind_fill() (and isopattern() itself)
+        # two genuinely duplicate-named columns (e.g. two "13C" columns --
+        # see issue #15); dedupe by label so each name is only selected
+        # once below (`g[col]`/`exp[col]` already returns *all* same-named
+        # columns for a duplicate label, in that formula's own tokenizing
+        # order on both sides -- see _read_stacked_csv/_split_by_compound).
+        isotope_cols = list(dict.fromkeys(c for c in exp.columns if c not in ("m/z", "abundance")))
         assert set(isotope_cols) == set(c for c in g.columns if c not in ("m/z", "abundance"))
-        skip_cols = _KNOWN_DUPLICATE_NAME_BUG.get(name, set())
         for col in isotope_cols:
-            if col in skip_cols:
-                continue
             np.testing.assert_array_equal(
                 g[col].to_numpy(dtype=np.int64), exp[col].to_numpy(dtype=np.int64)
             )

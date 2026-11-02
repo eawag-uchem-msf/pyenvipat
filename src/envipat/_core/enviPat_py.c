@@ -567,7 +567,18 @@ PyInit_enviPat_py(void)
         return NULL;
     }
 
-    EnviPatCoreError = PyErr_NewException("envipat._core.enviPat_py.EnviPatCoreError", NULL, NULL);
+    EnviPatCoreError = PyErr_NewExceptionWithDoc(
+        "envipat._core.enviPat_py.EnviPatCoreError",
+        "Raised by this extension's algorithm entry points (pattern_algo1,\n"
+        "pattern_algo2, ppm_trace, profile_with_trace, centroid) whenever the\n"
+        "underlying iso_core_* call reports a failure (invalid input, or an\n"
+        "internal ISO_CORE_ERR_* status -- see iso_core.h). Callers using the\n"
+        "pure-Python pipeline (envipat.isopattern, envipat.envelope,\n"
+        "envipat.vdetect) will not normally see this directly: those modules\n"
+        "catch it and report the same condition via R's own literal \"error\"\n"
+        "string sentinel instead of letting it propagate -- see each of\n"
+        "their module docstrings.",
+        NULL, NULL);
     if (EnviPatCoreError == NULL) {
         Py_DECREF(m);
         return NULL;
