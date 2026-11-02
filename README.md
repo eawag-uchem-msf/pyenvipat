@@ -149,8 +149,9 @@ defeat that.
 - `envipat.envelope` -- profile convolution (Gaussian / Cauchy-Lorentz).
 - `envipat.vdetect` -- centroid / intensoid / valley detection.
 - `envipat.check_several` -- overlap screening between compounds' peaks.
-- `envipat.resolution` -- `get_resolution`, a from-scratch port of R's
-  `getR` smoothing-spline resolution interpolation.
+- `envipat.resolution` -- `get_resolution`, resolution interpolation after R's `getR`,
+  fitted with `scipy.interpolate.make_smoothing_spline` (differs from R by up to
+  ~17%; `nknots`/`spar` are not supported).
 - `envipat.isowrap` -- convenience wrapper composing `isopattern`,
   `envelope` and `vdetect` for a batch of formulas.
 - `envipat._core` -- the compiled C extension wrapping the vendored

@@ -29,7 +29,7 @@ After changing any `.c`/`.h` file under `src/envipat/_core/`, re-run `pip instal
 - `src/envipat/` — Python package
   - `formula.py` — `check_chemform`, `check_ded`, `mergeform`, `multiform`, `subform`
   - `isopattern.py`, `envelope.py`, `vdetect.py`, `check_several.py`, `isowrap.py` — pipeline functions
-  - `resolution.py` — `get_resolution` (port of R's `getR`, smoothing spline; `_rseq.py` holds R's `seq` semantics)
+  - `resolution.py` — `get_resolution` (port of R's `getR`, fitted with scipy's `make_smoothing_spline`; not bit-compatible with R); `_rseq.py` holds R's `seq` semantics
   - `data.py` + `data/` — lazily loaded `isotopes`, `chemforms`, `adducts`, `resolution_list` (CSV/TXT)
 - `src/envipat/_core/` — C code: `iso_core.c/h` (pure-C core), `enviPat_py.c` (CPython bindings), and the vendored original algorithm files (`combination`, `profile`, `parse`, `element`, `isotope`, `peak`, `data.h`, `preferences.h`). `setup.py` builds them into `envipat._core.enviPat_py` with `-O2`.
 
