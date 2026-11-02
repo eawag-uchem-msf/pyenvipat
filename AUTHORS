@@ -1,0 +1,37 @@
+enviPat / pyEnvipat -- Authors
+==============================
+
+Original algorithm authors (R package `enviPat`, EAWAG)
+---------------------------------------------------------
+
+- Martin Loos <martin.loos@eawag.ch>
+- Christian Gerber
+
+Reference:
+  Loos, M., Gerber, C., Corona, F., Hollender, J., Singer, H. (2015)
+  "Accelerated Isotope Fine Structure Calculation Using Pruned
+  Transition Trees", Analytical Chemistry.
+  doi:10.1021/acs.analchem.5b00941
+
+Python port author / maintainer
+---------------------------------
+
+- Johannes Boog <johannesboog@yahoo.de>
+
+  Author and maintainer of the Python port (`pyEnvipat`). Credited here
+  as an author of the port itself -- not as sole author of the package,
+  and not as author of the underlying algorithms, which remain
+  Martin Loos' and Christian Gerber's work. The port is a derivative
+  work: its C extension vendors the original algorithm C sources
+  unmodified or with structural (non-algorithmic) extraction, and its
+  Python layer reproduces the R package's documented behavior, with
+  any deviations disclosed in the relevant merge request.
+
+Other historical contributors (R package, pre-port)
+-----------------------------------------------------
+
+- Artem Tarasov
+- wkumler
+
+See the git history of the upstream R package
+(https://github.com/blosloos/enviPat) for the full contribution record.
