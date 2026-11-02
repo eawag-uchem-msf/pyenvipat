@@ -1,0 +1,3 @@
+"formula1","formula2","result"
+"C10H10","Cl1","Cl from formula 2 not part of formula1"
+"C10H10","C20H10","Atom number of C from formula 2 not fully subset of formula1 atom number"

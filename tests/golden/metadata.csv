@@ -1,0 +1,6 @@
+"key","value"
+"r_version","R version 4.6.1 (2026-06-24)"
+"envipat_version","2.8"
+"gcc_version","gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+"cflags","-g -O2 -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -g"
+"platform","x86_64-pc-linux-gnu"

@@ -1,0 +1,5 @@
+"case_id","fn","params","output_file","input_file","notes"
+"case_001","check_several","dmz=0.01;ppm=FALSE;scenario=ppmFALSE_overlap","case_001.csv","",""
+"case_002","check_several","dmz=1e-06;ppm=FALSE;scenario=ppmFALSE_no_overlap","case_002.csv","",""
+"case_003","check_several","dmz=0.001;ppm=TRUE;scenario=ppmTRUE_no_overlap","case_003.csv","",""
+"case_004","check_several","dmz=50;ppm=TRUE;scenario=ppmTRUE_overlap","case_004.csv","","known bug: trailing comma in paste0() call errors when ppm=TRUE and an overlap is found"
