@@ -1,17 +1,23 @@
+# Python port of R package enviPat (Loos, Gerber et al., EAWAG),
+# licensed GPL-2.0-only, same as upstream. See AUTHORS and NOTICE.
 [build-system]
 requires = ["setuptools>=68", "numpy>=1.24"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "envipat"
+name = "pyEnvipat"
 version = "0.1.0"
-description = "Isotope pattern, profile and centroid calculation for mass spectrometry (Python port of the R package enviPat)"
+description = "Isotope pattern, profile and centroid calculation for mass spectrometry -- Python port of the R package enviPat (Loos, Gerber et al., EAWAG), GPL-2.0-only"
 readme = "README.md"
 requires-python = ">=3.10"
-license = "GPL-2.0-or-later"
+license = "GPL-2.0-only"
 authors = [
     { name = "Martin Loos" },
     { name = "Christian Gerber" },
+    { name = "Johannes Boog", email = "johannesboog@yahoo.de" },
+]
+maintainers = [
+    { name = "Johannes Boog", email = "johannesboog@yahoo.de" },
 ]
 dependencies = [
     "pandas>=2.0",
@@ -21,7 +27,8 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://www.envipat.eawag.ch/"
-Repository = "https://github.com/blosloos/enviPat"
+Repository = "https://gitlab.eawag.ch/joboog/pyenvipat"
+"Original R Package" = "https://github.com/blosloos/enviPat"
 
 [tool.setuptools.packages.find]
 where = ["src"]
