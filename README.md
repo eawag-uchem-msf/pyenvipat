@@ -46,9 +46,9 @@ installed automatically.
 No R installation is required to install, import or use this package --
 the bundled reference data (`envipat.data`) ships as plain CSV/TXT files,
 and the compiled extension vendors the original algorithms' C sources
-directly. (R is only used by this repository's own developer-facing
-test/comparison tooling under `tools/`, to verify parity against the
-original package -- never by `envipat` itself.)
+directly. (The R implementation was used once to freeze the reference
+outputs under `tests/golden/` and has since been removed from this
+repository; it remains in git history.)
 
 ## Quickstart
 

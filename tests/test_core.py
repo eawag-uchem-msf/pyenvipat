@@ -9,21 +9,15 @@ here is an exact equality check (np.testing.assert_array_equal, no
 tolerance), not an allclose().
 
 Five of the iso_pattern/iso_pattern_4 cases (case_006..case_010, formula
-C10H15Cl2) call the C core with R's *full* isotopes table rather than a
-committed, reduced one. This branch (issue #5, off #4) does not carry the
-CSV export of data(isotopes) that issue #6 adds, so tools/dump_isotopes_
-precise.R re-reads that same table from the installed R package instead of
-hand-transcribing ~300 rows (itself a source of error a bit-exactness claim
-can't tolerate). Those 5 cases skip (not fail) when Rscript / the installed
-enviPat R package aren't available -- every other case here needs no R at
-all: 24 of 29 golden c_direct cases run in a plain Python environment.
+C10H15Cl2) call the C core with the *full* isotopes table rather than a
+committed, reduced one; that table is the packaged
+src/envipat/data/isotopes.csv (a full-precision export of R's
+data(isotopes)).
 """
 
 from __future__ import annotations
 
 import csv
-import shutil
-import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -33,7 +27,7 @@ from envipat._core import enviPat_py as core
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GOLDEN_DIR = REPO_ROOT / "tests" / "golden" / "c_direct"
-DUMP_ISOTOPES_SCRIPT = REPO_ROOT / "tools" / "dump_isotopes_precise.R"
+ISOTOPES_CSV = REPO_ROOT / "src" / "envipat" / "data" / "isotopes.csv"
 
 
 # --------------------------------------------------------------------- #
@@ -99,22 +93,9 @@ def reduced_isotopes():
 
 
 @pytest.fixture(scope="session")
-def full_isotopes(tmp_path_factory):
-    """The full data(isotopes) table, re-dumped from the installed R
-    package (see tools/dump_isotopes_precise.R for why). Skips when R /
-    the enviPat R package aren't available."""
-    if shutil.which("Rscript") is None:
-        pytest.skip("Rscript not available")
-    out = tmp_path_factory.mktemp("isotopes") / "isotopes_full.csv"
-    proc = subprocess.run(
-        ["Rscript", str(DUMP_ISOTOPES_SCRIPT), str(out)],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode != 0:
-        pytest.skip(f"could not dump isotopes table via R: {proc.stderr.strip()}")
-    return _load_isotopes_csv(out)
+def full_isotopes():
+    """The full isotopes table, as packaged with envipat."""
+    return _load_isotopes_csv(ISOTOPES_CSV)
 
 
 # --------------------------------------------------------------------- #
@@ -221,7 +202,7 @@ def test_pattern_matches_golden(case_id, reduced_isotopes, full_isotopes):
     elif p["s1"] in ("C2H4", "ZZZ99"):
         # C2H4 only needs H/C (covered by the committed H/C/O reduced
         # table); ZZZ99 is an invalid element symbol and fails regardless
-        # of table content. Neither needs R.
+        # of table content. Neither needs the full table.
         elem, iso, mass, abu = reduced_isotopes
     else:
         elem, iso, mass, abu = full_isotopes

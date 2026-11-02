@@ -1,40 +1,17 @@
-# R package build artifacts
-*.tar.gz
-*.Rcheck/
-
 # Compiled C objects and shared libraries
-src/*.o
-src/*.so
-src/*.dll
-
-# R session artifacts
-.Rhistory
-.RData
-.Rproj.user/
-*.Rproj
+*.so
+*.o
+*.dll
 
 # Python build artifacts (envipat._core.enviPat_py C extension)
 __pycache__/
 *.pyc
-*.so
 build/
 dist/
 *.egg-info/
 .pytest_cache/
-
-# devcontainer build cache
-.devcontainer
-
-.claude
-
-# local planning docs, not synced to git
-/design/
-
-# Python build/tooling artifacts
 .venv/
-__pycache__/
-*.pyc
-*.egg-info/
-build/
-dist/
-.pytest_cache/
+
+# local tooling / planning docs, not synced to git
+.claude
+/design/

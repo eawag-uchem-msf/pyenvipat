@@ -2,7 +2,8 @@
 isopattern, envelope, vdetect, check_several, isowrap.
 
 Golden fixtures were frozen from the real R package (v2.8) in issue #3
-(``tools/make_golden.R``, ``tests/golden/<fn>/cases.csv`` + per-case
+(``tools/make_golden.R``, since removed but kept in git history;
+``tests/golden/<fn>/cases.csv`` + per-case
 output CSVs). Each fixture file was written by stacking every input
 formula's own (possibly differently-shaped) result table into one CSV via
 that script's ``stack_pattern_list()``/``rbind_fill()`` helpers -- a
@@ -34,21 +35,13 @@ Tolerance policy (per issue #8's own scope):
   ``envipat.check_several``'s module docstring for the fix-vs-reproduce
   decision) -- that case has no numeric golden target (R itself errored
   instead of producing one) and is asserted not to raise instead.
-- ``isowrap``: same ``rtol=1e-12`` as envelope/vdetect (it composes both).
-  Since issue #8's ``isowrap`` takes ``resolution`` explicitly rather than
-  interpolating it from a calibration table (``getR`` integration is
-  issue #9's job, not merged into this branch -- see
-  ``envipat.isowrap``'s module docstring), the golden isowrap fixtures'
-  per-formula resolutions (originally computed by R's ``isowrap`` calling
-  ``getR`` internally) are recomputed once, out of band, by asking the
-  *installed R package itself* for them (``tools/dump_isowrap_resolution.R``,
-  same pattern as issue #5's ``tools/dump_isotopes_precise.R``) and fed
-  in as the explicit ``resolution`` argument -- this does not import or
-  depend on issue #9's Python port at all. Skips (not fails) when
-  Rscript / the installed R package aren't available, exactly like
-  ``tests/test_core.py``'s ``full_isotopes`` fixture.
+- ``isowrap``: ``rtol=1e-9``. Per-formula resolutions are interpolated by
+  ``envipat.get_resolution`` from the golden case's ``nknots``/``spar``
+  rather than shared with R, so they differ from R's by ~1e-14 relative;
+  that perturbs the sampled profile abundances by up to ~4e-12 (the
+  looser bound than envelope/vdetect's ``rtol=1e-12`` is for this reason).
 
-Run inside the dev container, after `pip install -e .`:
+Run after `pip install -e .`:
     pytest tests/python/test_pipeline.py
 """
 
@@ -56,8 +49,6 @@ from __future__ import annotations
 
 import csv
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -70,6 +61,7 @@ from envipat.envelope import envelope
 from envipat.formula import check_chemform
 from envipat.isopattern import isopattern
 from envipat.isowrap import isowrap
+from envipat.resolution import get_resolution
 from envipat.vdetect import vdetect
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -452,40 +444,17 @@ def test_check_several_matches_golden(case_id, pattern_overlap, pattern_no_overl
 # --------------------------------------------------------------------- #
 
 ISOWRAP_CASES = _load_cases("isowrap")
-DUMP_ISOWRAP_RESOLUTION_SCRIPT = REPO_ROOT / "tools" / "dump_isowrap_resolution.R"
-
-
-@pytest.fixture(scope="session")
-def isowrap_resolution_table(tmp_path_factory):
-    """getR()-interpolated resolutions for POOL5, per curve -- computed by
-    the installed R package itself (see this module's docstring and
-    tools/dump_isowrap_resolution.R for why: issue #9's getR port is not
-    merged into this branch). Skips if R / the installed package aren't
-    available, mirroring tests/test_core.py's full_isotopes fixture."""
-    if shutil.which("Rscript") is None:
-        pytest.skip("Rscript not available")
-    out = tmp_path_factory.mktemp("isowrap") / "resolution.csv"
-    proc = subprocess.run(
-        ["Rscript", str(DUMP_ISOWRAP_RESOLUTION_SCRIPT), str(out)],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode != 0:
-        pytest.skip(f"could not dump isowrap resolution via R: {proc.stderr.strip()}")
-    return pd.read_csv(out, float_precision="round_trip")
 
 
 @pytest.mark.parametrize("case_id", sorted(ISOWRAP_CASES))
-def test_isowrap_matches_golden(case_id, isowrap_resolution_table):
+def test_isowrap_matches_golden(case_id):
     row = ISOWRAP_CASES[case_id]
     p = _parse_params(row["params"])
-    curve = p["curve"]
-
-    curve_rows = isowrap_resolution_table[isowrap_resolution_table["curve"] == curve]
-    resolution = curve_rows.set_index("formula").loc[POOL5, "resolution"].to_numpy(dtype=np.float64)
 
     checked5 = check_chemform(ISOTOPES, POOL5)
+    resolution = get_resolution(
+        checked5, data.resolution_list[p["curve"]], nknots=int(p["nknots"]), spar=float(p["spar"])
+    ).to_numpy(dtype=np.float64)
 
     got = isowrap(
         ISOTOPES,
@@ -503,4 +472,4 @@ def test_isowrap_matches_golden(case_id, isowrap_resolution_table):
     )
     expected = _split_by_compound(_read_stacked_csv(GOLDEN / "isowrap" / row["output_file"]))
 
-    _assert_profile_dict_matches(got, expected, rtol=1e-12)
+    _assert_profile_dict_matches(got, expected, rtol=1e-9)
