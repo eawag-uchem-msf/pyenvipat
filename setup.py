@@ -10,14 +10,13 @@ from setuptools import Extension, setup
 
 CORE_DIR = "src/envipat/_core"
 
-# Matches what R CMD INSTALL compiles the R package's own C sources with
-# (`R CMD config CFLAGS` => "-g -O2 -fstack-protector-strong ..."), so
-# floating-point behavior does not drift between the R and Python builds of
-# the same algorithm code (see iso_core.c/combination.c/etc., vendored here
-# unmodified). GCC and Clang both take the *last* -O flag seen on the
-# command line, and setuptools appends extra_compile_args after its own
-# sysconfig-derived flags (commonly -O3 on this platform's Python build), so
-# appending "-O2" here is sufficient to win.
+# Matches the optimization level the original enviPat C sources were built
+# with (-O2), so floating-point behavior does not drift from the original
+# results the tests compare against (see iso_core.c/combination.c/etc.,
+# vendored here unmodified). GCC and Clang both take the *last* -O flag
+# seen on the command line, and setuptools appends extra_compile_args after
+# its own sysconfig-derived flags (commonly -O3 on this platform's Python
+# build), so appending "-O2" here is sufficient to win.
 EXTRA_COMPILE_ARGS = ["-O2"]
 
 enviPat_py = Extension(

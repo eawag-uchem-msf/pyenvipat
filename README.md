@@ -12,14 +12,12 @@ package's own name.
 
 This port reproduces the R package's algorithms and results (isotope
 fine-structure calculation, Gaussian/Cauchy-Lorentz profile convolution,
-centroid/intensoid/valley detection, and a from-scratch reimplementation
-of R's smoothing-spline resolution interpolation) via a compiled C
-extension built from the same, unmodified core C sources the R package's
-own `.Call` entry points delegate to
-(`envipat._core.enviPat_py` -- see that module's docstring). Parity with
-the original R package is verified against fixtures frozen from real R
-output; see `tests/` and the port's GitLab issue history for the exact
-tolerances and any disclosed R-vs-Python divergences.
+centroid/intensoid/valley detection, and a reimplementation of the
+resolution interpolation) via a compiled C extension built from the
+original, unmodified algorithm C sources (`envipat._core.enviPat_py` --
+see that module's docstring). Parity with the original R package is
+verified against reference outputs frozen from enviPat v2.8; see
+`tests/` for the exact tolerances and any known divergences.
 
 ## Installation
 
@@ -46,9 +44,7 @@ installed automatically.
 No R installation is required to install, import or use this package --
 the bundled reference data (`envipat.data`) ships as plain CSV/TXT files,
 and the compiled extension vendors the original algorithms' C sources
-directly. (The R implementation was used once to freeze the reference
-outputs under `tests/golden/` and has since been removed from this
-repository; it remains in git history.)
+directly.
 
 ## Quickstart
 
@@ -111,8 +107,8 @@ centro["C6H12O6"]
 
 `isowrap` (`envipat.isowrap.isowrap`) composes the same three steps into
 one call for a batch of formulas, given a `resolution` value (or a
-per-formula sequence -- e.g. from `envipat.resolution.get_resolution`,
-this port's reimplementation of R's `getR`, when interpolating resolution
+per-formula sequence -- e.g. from `envipat.resolution.get_resolution`
+(the equivalent of R's `getR`), when interpolating resolution
 from an instrument calibration curve such as one of
 `envipat.data.resolution_list`'s 31 curves, rather than passing a fixed
 value):

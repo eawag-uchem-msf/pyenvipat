@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Package Overview
 
-**pyEnvipat** (import name `envipat`) is a Python port of the R package enviPat (Loos, Gerber et al., EAWAG; GPL-2.0-only, see `LICENSE`, `AUTHORS`, `NOTICE`) for isotope pattern and mass spectrometry envelope calculations. The original algorithms are C code, compiled into a CPython extension; the Python layer handles formula parsing, pandas I/O and orchestration. The R implementation has been removed; it lives on only in git history and as frozen reference outputs in `tests/golden/`.
+**pyEnvipat** (import name `envipat`) is a Python port of the R package enviPat (Loos, Gerber et al., EAWAG; GPL-2.0-only, see `LICENSE`, `AUTHORS`, `NOTICE`) for isotope pattern and mass spectrometry envelope calculations. The original algorithms are C code, compiled into a CPython extension; the Python layer handles formula parsing, pandas I/O and orchestration. No R code is part of this repository; the R package survives only as frozen reference outputs in `tests/golden/`.
 
 ## Common Commands
 
@@ -53,7 +53,7 @@ vdetect()          ← centroid / intensoid / valley detection
 
 - `tests/test_core.py` — C extension against `tests/golden/c_direct/` (exact equality).
 - `tests/python/` — data loaders, formula helpers, pipeline functions, `get_resolution`.
-- `tests/golden/` — fixtures frozen from the original R package v2.8. **Never regenerate or edit them**: the generating R scripts are no longer in the tree (`git log -- tools/make_golden.R`). Tolerances per module are documented in each test file's docstring.
+- `tests/golden/` — fixtures frozen from the original R package v2.8. **Never regenerate or edit them**: the R scripts that generated them are not part of this repository (only in git history). Tolerances per module are documented in each test file's docstring.
 
 ## Conventions
 
