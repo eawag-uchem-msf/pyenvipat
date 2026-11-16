@@ -33,6 +33,31 @@
 #include "iso_core.h"
 
 /* ---------------------------------------------------------------------- */
+/* stable element sort                                                    */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * Sort elements by isotope count (elements_sort_by_isoamount_inc), keeping
+ * the formula order for equal counts. qsort() leaves the order of equal keys
+ * to the C library: glibc's merge sort keeps it (the behaviour the golden
+ * fixtures were generated with), musl's smoothsort does not, and the element
+ * order changes the summation order of isotope masses, i.e. m/z in the last
+ * bit. Formulas hold a handful of elements, so insertion sort is enough.
+ */
+static void sort_elements_stable(Element *elements, unsigned short element_amount)
+{
+    for (unsigned short i = 1; i < element_amount; i++) {
+        Element key = elements[i];
+        unsigned short j = i;
+        while (j > 0 && elements_sort_by_isoamount_inc(&elements[j - 1], &key) > 0) {
+            elements[j] = elements[j - 1];
+            j--;
+        }
+        elements[j] = key;
+    }
+}
+
+/* ---------------------------------------------------------------------- */
 /* shared utility (moved verbatim from main.c)                            */
 /* ---------------------------------------------------------------------- */
 
@@ -404,7 +429,7 @@ int iso_core_pattern_algo1(char *sum,
         free(elements);
         return ISO_CORE_ERR_PARSE;
     }
-    qsort(elements, element_amount, sizeof(Element), elements_sort_by_isoamount_inc);
+    sort_elements_stable(elements, element_amount);
 
     if (peak_limit >= INT_LIMIT || peak_limit < 1) {
         snprintf(errmsg, ISO_CORE_ERRMSG_SIZE, "invalid peak limit");
@@ -529,7 +554,7 @@ int iso_core_pattern_algo4(char *sum,
         free(elements);
         return ISO_CORE_ERR_PARSE;
     }
-    qsort(elements, element_amount, sizeof(Element), elements_sort_by_isoamount_inc);
+    sort_elements_stable(elements, element_amount);
 
     if (peak_limit >= INT_LIMIT || peak_limit < 1) {
         snprintf(errmsg, ISO_CORE_ERRMSG_SIZE, "invalid peak limit");
