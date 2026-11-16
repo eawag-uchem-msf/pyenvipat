@@ -27,3 +27,8 @@ report.xml
 # local tooling / planning docs, not synced to git
 .claude
 /design/
+
+# test/coverage output and editors
+htmlcov/
+.idea/
+.vscode/
