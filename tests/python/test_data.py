@@ -19,7 +19,7 @@ import envipat.data as data
 
 
 def test_isotopes_shape():
-    assert data.isotopes.shape == (308, 5)
+    assert data.isotopes.shape == (309, 5)
     assert list(data.isotopes.columns) == [
         "element",
         "isotope",
@@ -38,8 +38,8 @@ def test_isotopes_exact_values():
     assert row0["abundance"] == 0.99988500000000002
     assert int(row0["ratioC"]) == 6
 
-    # R: isotopes[308, "mass"] == 34.96885271 (last row, Cl)
-    assert data.isotopes.iloc[307]["mass"] == 34.96885271
+    # R: isotopes[309, "mass"] == 34.96885271 (last row, Cl; [81]Br was inserted before it)
+    assert data.isotopes.iloc[308]["mass"] == 34.96885271
 
 
 def test_chemforms_shape_and_values():
@@ -96,3 +96,23 @@ def test_lazy_loading_returns_same_cached_object():
     # __getattr__ + lru_cache: repeated access should not re-parse the file.
     assert data.isotopes is data.isotopes
     assert data.adducts is data.adducts
+
+
+def test_isotopes_br81_label():
+    # Labelled single-isotope [81]Br (issue #29), inserted before the final Cl row.
+    row = data.isotopes[data.isotopes["element"] == "[81]Br"]
+    assert len(row) == 1
+    row = row.iloc[0]
+    assert row["isotope"] == "81Br"
+    assert row["mass"] == 80.9162897
+    assert row["abundance"] == 1
+    assert int(row["ratioC"]) == 2
+
+
+def test_isopattern_br81_label():
+    from envipat import isopattern
+
+    res = isopattern(data.isotopes, ["C6H5[81]Br1"], threshold=0.0001, verbose=False)
+    pat = res["C6H5[81]Br1"]
+    # Single isotope per element position => the monoisotopic peak is the 81Br one.
+    assert abs(pat["m/z"].iloc[0] - (6 * 12 + 5 * 1.007825032 + 80.9162897)) < 1e-3
