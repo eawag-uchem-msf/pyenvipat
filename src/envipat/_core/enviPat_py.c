@@ -548,6 +548,10 @@ static struct PyModuleDef enviPat_py_module = {
     "core (iso_core.c/h).",
     -1,
     EnviPatMethods,
+    NULL, /* m_slots */
+    NULL, /* m_traverse */
+    NULL, /* m_clear */
+    NULL, /* m_free */
 };
 
 PyMODINIT_FUNC
