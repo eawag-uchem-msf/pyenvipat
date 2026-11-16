@@ -155,7 +155,9 @@ def _assert_profile_dict_matches(got: dict, expected: dict, *, rtol: float) -> N
             continue
         assert not isinstance(g, str), f"{name}: expected a DataFrame, got {g!r}"
         np.testing.assert_allclose(g["m/z"].to_numpy(), exp["m/z"].to_numpy(), rtol=rtol)
-        np.testing.assert_allclose(g["abundance"].to_numpy(), exp["abundance"].to_numpy(), rtol=rtol)
+        np.testing.assert_allclose(
+            g["abundance"].to_numpy(), exp["abundance"].to_numpy(), rtol=rtol
+        )
 
 
 # --------------------------------------------------------------------- #
@@ -283,9 +285,7 @@ def test_isopattern_multiple_duplicate_formulas_all_named():
     # All duplicated formulas must be named in the error, not just the
     # first one encountered.
     with pytest.raises(ValueError) as excinfo:
-        isopattern(
-            ISOTOPES, ["C1H4", "C2H6", "C1H4", "C2H6", "C3H8"], threshold=0.1, verbose=False
-        )
+        isopattern(ISOTOPES, ["C1H4", "C2H6", "C1H4", "C2H6", "C3H8"], threshold=0.1, verbose=False)
     assert "C1H4" in str(excinfo.value)
     assert "C2H6" in str(excinfo.value)
     assert "C3H8" not in str(excinfo.value)
@@ -398,7 +398,11 @@ def test_check_several_matches_golden(case_id, pattern_overlap, pattern_no_overl
     scenario = p["scenario"]
     dmz = float(p["dmz"])
     ppm = p["ppm"] == "TRUE"
-    pattern = pattern_overlap if "overlap" in scenario and "no_overlap" not in scenario else pattern_no_overlap
+    pattern = (
+        pattern_overlap
+        if "overlap" in scenario and "no_overlap" not in scenario
+        else pattern_no_overlap
+    )
 
     if scenario == "ppmTRUE_overlap":
         # Known R bug, deliberately fixed rather than reproduced -- see
@@ -464,6 +468,7 @@ def _assert_profile_structure_matches(got: dict, expected: dict) -> None:
         assert abs(gm.min() - em.min()) < _ISOWRAP_MZ_ATOL
         assert abs(gm.max() - em.max()) < _ISOWRAP_MZ_ATOL
 
+
 ISOWRAP_CASES = _load_cases("isowrap")
 
 
@@ -473,9 +478,9 @@ def test_isowrap_matches_golden(case_id):
     p = _parse_params(row["params"])
 
     checked5 = check_chemform(ISOTOPES, POOL5)
-    resolution = get_resolution(
-        checked5, data.resolution_list[p["curve"]]
-    ).to_numpy(dtype=np.float64)
+    resolution = get_resolution(checked5, data.resolution_list[p["curve"]]).to_numpy(
+        dtype=np.float64
+    )
 
     got = isowrap(
         ISOTOPES,

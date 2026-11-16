@@ -150,7 +150,9 @@ def envelope(
         a = pat.iloc[:, 1].to_numpy(dtype=np.float64)
 
         if ppm:
-            trace = _core.ppm_trace(start=float(m.min() - extend), end=float(m.max() + extend), ppm=float(dmz))
+            trace = _core.ppm_trace(
+                start=float(m.min() - extend), end=float(m.max() + extend), ppm=float(dmz)
+            )
         elif dmz != "get":
             trace = r_seq(m.min() - extend, m.max() + extend, float(dmz))
         else:

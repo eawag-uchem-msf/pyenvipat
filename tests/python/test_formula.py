@@ -155,8 +155,15 @@ def test_check_chemform_d_canonicalized_to_deuterium_in_chemforms():
 
 def test_check_chemform_case_002_edge_cases():
     forms = [
-        "C900Cl4H49", "O82394", "C8G500Zn9", "Br1", "6DBr9889", "",
-        "C1H6O6", "D2H2O1", "[13]C2C8D2H8[15]N2N2[18]O2O3",
+        "C900Cl4H49",
+        "O82394",
+        "C8G500Zn9",
+        "Br1",
+        "6DBr9889",
+        "",
+        "C1H6O6",
+        "D2H2O1",
+        "[13]C2C8D2H8[15]N2N2[18]O2O3",
     ]
     # Indices 7 ("D2H2O1") and 8 ("[13]C2C8D2H8[15]N2N2[18]O2O3") contain a
     # literal "D" and no longer match this golden (R) reference verbatim:
@@ -215,7 +222,14 @@ def test_check_chemform_case_004_get_list():
 
     got_divergent = check_chemform(data.isotopes, [diverges_since_issue_14], get_list=True)
     assert got_divergent[0] == {
-        "[13]C": 2, "C": 8, "[2]H": 2, "H": 8, "[15]N": 2, "N": 2, "[18]O": 2, "O": 3,
+        "[13]C": 2,
+        "C": 8,
+        "[2]H": 2,
+        "H": 8,
+        "[15]N": 2,
+        "N": 2,
+        "[18]O": 2,
+        "O": 3,
     }
 
 
@@ -271,9 +285,7 @@ def test_check_chemform_d_canonicalized_to_deuterium():
     # "D2H2O1"/22.038768244 and
     # "[13]C2C8D2H8[15]N2N2[18]O2O3"/276.086944496; this port now reports
     # the canonicalized values below instead.
-    got2 = check_chemform(
-        data.isotopes, ["D2H2O1", "[13]C2C8D2H8[15]N2N2[18]O2O3"]
-    )
+    got2 = check_chemform(data.isotopes, ["D2H2O1", "[13]C2C8D2H8[15]N2N2[18]O2O3"])
     assert list(got2["new_formula"]) == [
         "[2]H2H2O1",
         "[13]C2C8[2]H2H8[15]N2N2[18]O2O3",
@@ -294,8 +306,18 @@ def test_check_chemform_d_inside_bracket_group_is_substituted():
 @pytest.mark.parametrize(
     "formula",
     [
-        "()2CO2", "(CH4", "CH4)", "Xx2", "cH4", "2C", "[13]5", "]C2", "[C2",
-        "6DBr9889", "C8G500Zn9", "CH4)2",
+        "()2CO2",
+        "(CH4",
+        "CH4)",
+        "Xx2",
+        "cH4",
+        "2C",
+        "[13]5",
+        "]C2",
+        "[C2",
+        "6DBr9889",
+        "C8G500Zn9",
+        "CH4)2",
     ],
 )
 def test_check_chemform_invalid_formulas(formula):

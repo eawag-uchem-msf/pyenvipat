@@ -60,7 +60,11 @@ def _load_golden_cases():
             expected = df[col].to_numpy(dtype=float)
             out.append(
                 pytest.param(
-                    curve, nknots, spar, mass_grid, expected,
+                    curve,
+                    nknots,
+                    spar,
+                    mass_grid,
+                    expected,
                     id=f"{curve}/nknots={nknots}/spar={spar}",
                 )
             )
@@ -74,11 +78,13 @@ def _make_checked(masses: np.ndarray) -> pd.DataFrame:
     """A minimal stand-in for check_chemform's output (issue #7), with just
     the columns get_resolution reads: boolean 'warning' and numeric
     'monoisotopic_mass'."""
-    return pd.DataFrame({
-        "warning": False,
-        "new_formula": pd.NA,
-        "monoisotopic_mass": masses,
-    })
+    return pd.DataFrame(
+        {
+            "warning": False,
+            "new_formula": pd.NA,
+            "monoisotopic_mass": masses,
+        }
+    )
 
 
 @pytest.mark.parametrize(

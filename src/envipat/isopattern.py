@@ -172,8 +172,7 @@ def isopattern(
     if duplicates:
         raise ValueError(
             "duplicate formula(s) in chemforms (each formula must be "
-            "unique, since results are keyed by formula): "
-            + ", ".join(duplicates)
+            "unique, since results are keyed by formula): " + ", ".join(duplicates)
         )
 
     charges = _as_charge_list(charge, len(chemforms))
@@ -204,7 +203,9 @@ def isopattern(
 
         if return_iso_calc_amount:
             pattern[formula] = dict(
-                zip(result["element_names"], (int(c) for c in result["element_all_iso_calc_amount"]))
+                zip(
+                    result["element_names"], (int(c) for c in result["element_all_iso_calc_amount"])
+                )
             )
             continue
 
