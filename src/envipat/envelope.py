@@ -145,12 +145,14 @@ def envelope(
 
     extend = 0.5
     profiles: dict = {}
-    for (formula, pat), res in zip(pattern.items(), resolution_list):
+    for (formula, pat), res in zip(pattern.items(), resolution_list, strict=False):
         m = pat.iloc[:, 0].to_numpy(dtype=np.float64)
         a = pat.iloc[:, 1].to_numpy(dtype=np.float64)
 
         if ppm:
-            trace = _core.ppm_trace(start=float(m.min() - extend), end=float(m.max() + extend), ppm=float(dmz))
+            trace = _core.ppm_trace(
+                start=float(m.min() - extend), end=float(m.max() + extend), ppm=float(dmz)
+            )
         elif dmz != "get":
             trace = r_seq(m.min() - extend, m.max() + extend, float(dmz))
         else:

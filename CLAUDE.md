@@ -9,16 +9,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Common Commands
 
 ```bash
-# Create an environment and install in editable mode (compiles the C extension)
+# Create an environment and install in editable mode with dev tooling (compiles the C extension)
 python -m venv .venv && . .venv/bin/activate
-pip install -e . pytest
+pip install -e ".[dev]"
+pre-commit install
 
-# Run the whole test suite (no R needed)
-pytest tests
-
-# Run one module / test
+# Quick loop on the editable install (no R needed)
+pytest
 pytest tests/python/test_pipeline.py -k isowrap
+
+# What CI runs (.gitlab-ci.yml calls these nox sessions)
+nox -s lint format typecheck    # ruff check, ruff format (--check in CI), mypy
+nox -s tests                    # builds + installs a wheel, pytest + coverage on 3.10-3.13
+nox -s build                    # sdist + wheel, twine check
 ```
+
+Tool configuration (ruff, mypy, pytest, coverage threshold) lives in `pyproject.toml`; `.pre-commit-config.yaml` mirrors the quality checks and must never touch `tests/golden/` or the vendored C files. On a host filesystem without symlink support (e.g. a Windows mount), pass `nox --envdir <dir outside the mount>`.
 
 After changing any `.c`/`.h` file under `src/envipat/_core/`, re-run `pip install -e .` to rebuild the extension.
 

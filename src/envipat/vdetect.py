@@ -93,7 +93,9 @@ def vdetect(
         a = prof.iloc[:, 1].to_numpy(dtype=np.float64)
 
         try:
-            out_mz, out_abundance = _core.centroid(profile_mass=m, profile_abundance=a, type=return_type)
+            out_mz, out_abundance = _core.centroid(
+                profile_mass=m, profile_abundance=a, type=return_type
+            )
         except _core.EnviPatCoreError:
             getlist[formula] = "error"
             continue

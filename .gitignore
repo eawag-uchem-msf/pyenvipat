@@ -12,6 +12,15 @@ dist/
 .pytest_cache/
 .venv/
 
+# nox / coverage / lint caches and CI reports
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+report.xml
+.mypy_cache/
+.ruff_cache/
+
 # local tooling / planning docs, not synced to git
 .claude
 /design/

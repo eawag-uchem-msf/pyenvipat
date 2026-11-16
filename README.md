@@ -30,11 +30,14 @@ pip install .
 ```
 
 For development (editable install, so local edits take effect without
-reinstalling):
+reinstalling, plus test and lint tooling):
 
 ```bash
-pip install -e .
+pip install -e ".[dev]"
+pre-commit install
 ```
+
+See [Development](#development) for running checks and tests.
 
 Requirements: Python >= 3.10, a C compiler (to build the bundled
 `envipat._core.enviPat_py` extension at install time), and `numpy` at
@@ -157,6 +160,28 @@ Every public function above has a full docstring (parameters, return
 shape, and where relevant, exactly how it reproduces -- or deliberately
 diverges from -- its R original); `help(...)` or your editor's docstring
 popup is the fastest way to explore.
+
+## Development
+
+Lint, type checks and tests are configured in `pyproject.toml` and run through
+[nox](https://nox.thea.codes/) sessions (`noxfile.py`); GitLab CI
+(`.gitlab-ci.yml`) calls the same sessions, and the pre-commit hooks
+(`.pre-commit-config.yaml`) mirror the lint and type checks.
+
+```bash
+nox                       # lint, format, typecheck, tests on Python 3.10-3.13
+nox -s tests-3.12         # tests on a single Python version
+nox -s lint typecheck     # quality checks only
+nox -s format             # apply ruff formatting
+nox -s build              # sdist + wheel into dist/
+pre-commit run --all-files
+```
+
+The `tests` session builds a wheel and installs it (not editable), so the
+suite runs against the installed package rather than the source tree, with a
+coverage threshold set in `[tool.coverage.report]`. Missing Python versions are
+skipped locally (`uv python install 3.13` provides one when nox uses uv). For a
+quick loop on an editable install, `pytest` works directly.
 
 ## Citation
 

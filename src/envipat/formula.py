@@ -86,7 +86,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-__all__ = ["check_chemform", "check_ded", "mergeform", "subform", "multiform"]
+__all__ = ["check_chemform", "check_ded", "mergeform", "multiform", "subform"]
 
 _ALLOWED_CHARS_RE = re.compile(r"^[A-Za-z0-9()\[\]]*$")
 # Matches a literal "D" meant as the deuterium shorthand, not as the first
@@ -246,7 +246,9 @@ def _parse_nested(formula: str) -> list[tuple[str, int]]:
             pos += 1
             prefix = formula[start:pos]
         if pos >= n or not formula[pos].isupper():
-            raise _FormulaSyntaxError(f"expected an element symbol in {formula!r} at position {pos}")
+            raise _FormulaSyntaxError(
+                f"expected an element symbol in {formula!r} at position {pos}"
+            )
         start = pos
         pos += 1
         while pos < n and formula[pos].islower():
@@ -313,7 +315,7 @@ def _build_isotope_ref(isotopes: pd.DataFrame) -> _IsotopeRef:
 
     ref = _IsotopeRef()
     best_abund: dict[str, float] = {}
-    for symbol, mass, abund in zip(elem_col, mass_col, abund_col):
+    for symbol, mass, abund in zip(elem_col, mass_col, abund_col, strict=True):
         if symbol not in ref.order:
             ref.order[symbol] = len(ref.order)
             ref.mass[symbol] = mass
@@ -374,9 +376,7 @@ def check_chemform(
     chemforms = list(chemforms)
 
     if any(" " in f for f in chemforms):
-        raise ValueError(
-            "Some or all of strings in chemforms contain empty spaces - please revise"
-        )
+        raise ValueError("Some or all of strings in chemforms contain empty spaces - please revise")
 
     ref = _build_isotope_ref(isotopes)
 
@@ -418,9 +418,7 @@ def check_chemform(
     if get_list:
         return listed
 
-    return pd.DataFrame(
-        {"warning": warn, "new_formula": new_formula, "monoisotopic_mass": mass}
-    )
+    return pd.DataFrame({"warning": warn, "new_formula": new_formula, "monoisotopic_mass": mass})
 
 
 def check_ded(formulas, deduct) -> list:
@@ -525,9 +523,7 @@ def mergeform(formula1, formula2) -> list:
         # elements first (in formula1's order), then any *new* elements
         # from formula2 (in formula2's order) that aren't already in
         # formula1.
-        ordered = list(counts1.keys()) + [
-            s for s in counts2.keys() if s not in counts1
-        ]
+        ordered = list(counts1.keys()) + [s for s in counts2 if s not in counts1]
         out.append("".join(f"{s}{merged[s]}" for s in ordered))
     return out
 
@@ -620,7 +616,5 @@ def multiform(formula_in, fact) -> list:
     for f in formula_in:
         f_str = _D_NOT_BEFORE_LOWER_RE.sub("[2]H", str(f))
         tokens = _parse_flat(f_str)
-        out.append(
-            "".join(f"{symbol}{_format_r_number(count * fact)}" for symbol, count in tokens)
-        )
+        out.append("".join(f"{symbol}{_format_r_number(count * fact)}" for symbol, count in tokens))
     return out

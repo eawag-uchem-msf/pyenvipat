@@ -1,0 +1,76 @@
+# OS-independent CI skeleton. Every job calls a nox session (noxfile.py), so CI and
+# local runs match:  nox -s lint format typecheck tests build
+# Jobs run in the standard python images, which ship the C compiler the extension needs.
+# OS-specific jobs and wheels: Linux #21, Windows #22, macOS #23.
+
+stages: [quality, test, build]
+
+# Merge request pipelines instead of a second push pipeline while an MR is open; branch
+# pipelines (default branch, web runs) and tag pipelines are unchanged.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"
+      when: never
+    - if: $CI_COMMIT_BRANCH || $CI_COMMIT_TAG
+
+default:
+  image: python:3.12
+  interruptible: true
+
+variables:
+  CI: "true"
+  PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+  UV_CACHE_DIR: $CI_PROJECT_DIR/.cache/uv
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+.nox:
+  cache:
+    key:
+      files: [pyproject.toml]
+      prefix: nox-$CI_JOB_NAME_SLUG
+    paths: [.cache/pip/, .cache/uv/]
+  before_script:
+    - pip install nox uv
+
+lint:
+  extends: .nox
+  stage: quality
+  script:
+    - nox -s lint
+    - nox -s format -- --check
+
+typecheck:
+  extends: .nox
+  stage: quality
+  script:
+    - nox -s typecheck
+
+test:
+  extends: .nox
+  stage: test
+  image: python:$PYTHON_VERSION
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.10", "3.11", "3.12", "3.13"]
+  script:
+    # The image's interpreter is the only one available, so run its matching session.
+    - nox -s "tests-$PYTHON_VERSION"
+  coverage: '/^TOTAL\s.*?(\d+(?:\.\d+)?)%\s*$/'
+  artifacts:
+    when: always
+    expire_in: 1 week
+    reports:
+      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+build:
+  extends: .nox
+  stage: build
+  script:
+    - nox -s build
+  artifacts:
+    expire_in: 1 week
+    paths: [dist/]
