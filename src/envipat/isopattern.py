@@ -39,7 +39,7 @@ from __future__ import annotations
 import sys
 import warnings
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -54,7 +54,7 @@ _DEFAULT_EMASS = 0.00054857990924
 _ALGOS = {1: "pattern_algo1", 2: "pattern_algo2"}
 
 
-def _as_charge_list(charge, n_formulas: int) -> list:
+def _as_charge_list(charge: float | Sequence[float] | bool, n_formulas: int) -> list:
     """Mirrors R's charge-argument handling in isopattern():
     a scalar (including FALSE) recycled to length n_formulas, or a
     per-formula vector that must already match n_formulas in length."""
@@ -82,15 +82,15 @@ def _as_charge_list(charge, n_formulas: int) -> list:
 
 def isopattern(
     isotopes: pd.DataFrame,
-    chemforms,
+    chemforms: str | Iterable[str],
     threshold: float = 0.001,
-    charge=False,
+    charge: float | Sequence[float] | bool = False,
     emass: float = _DEFAULT_EMASS,
     algo: int = 1,
     rel_to: int = 0,
     verbose: bool = True,
     return_iso_calc_amount: bool = False,
-):
+) -> dict[str, pd.DataFrame | str | dict[str, int]]:
     """Calculate isotope fine structure pattern(s) for one or more formulas.
 
     Port of R's ``isopattern``.
