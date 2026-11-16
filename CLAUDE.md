@@ -21,7 +21,12 @@ pytest tests/python/test_pipeline.py -k isowrap
 # What CI runs (.gitlab-ci.yml calls these nox sessions)
 nox -s lint format typecheck    # ruff check, ruff format (--check in CI), mypy
 nox -s tests                    # builds + installs a wheel, pytest + coverage on 3.10-3.13
-nox -s build                    # sdist + wheel, twine check
+nox -s cwarnings                # own C files (iso_core.c, enviPat_py.c) with -Wall -Wextra -Werror
+nox -s sanitize                 # pytest against an ASan/UBSan build of the extension (GCC, Linux)
+nox -s build                    # sdist + wheel, twine check, sdist must ship all .c/.h and data files
+
+# Linux wheels as CI builds them (needs docker; config in [tool.cibuildwheel])
+cibuildwheel --platform linux
 ```
 
 Tool configuration (ruff, mypy, pytest, coverage threshold) lives in `pyproject.toml`; `.pre-commit-config.yaml` mirrors the quality checks and must never touch `tests/golden/` or the vendored C files. On a host filesystem without symlink support (e.g. a Windows mount), pass `nox --envdir <dir outside the mount>`.
@@ -37,7 +42,7 @@ After changing any `.c`/`.h` file under `src/envipat/_core/`, re-run `pip instal
   - `isopattern.py`, `envelope.py`, `vdetect.py`, `check_several.py`, `isowrap.py` — pipeline functions
   - `resolution.py` — `get_resolution` (port of R's `getR`, fitted with scipy's `make_smoothing_spline`; not bit-compatible with R); `_rseq.py` holds R's `seq` semantics
   - `data.py` + `data/` — lazily loaded `isotopes`, `chemforms`, `adducts`, `resolution_list` (CSV/TXT)
-- `src/envipat/_core/` — C code: `iso_core.c/h` (pure-C core), `enviPat_py.c` (CPython bindings), and the vendored original algorithm files (`combination`, `profile`, `parse`, `element`, `isotope`, `peak`, `data.h`, `preferences.h`). `setup.py` builds them into `envipat._core.enviPat_py` with `-O2`.
+- `src/envipat/_core/` — C code: `iso_core.c/h` (pure-C core), `enviPat_py.c` (CPython bindings), and the vendored original algorithm files (`combination`, `profile`, `parse`, `element`, `isotope`, `peak`, `data.h`, `preferences.h`). `setup.py` builds them into `envipat._core.enviPat_py`, with flags per compiler (`-O2 -Wall -Wextra` for GCC/Clang, `/O2` for MSVC); the vendored files' remaining warnings are triaged there.
 
 ### Typical workflow
 
