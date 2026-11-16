@@ -70,8 +70,14 @@ import pandas as pd
 import pytest
 
 import envipat.data as data
-from envipat.formula import check_chemform, check_ded, mergeform, multiform, subform
-from envipat.formula import _D_NOT_BEFORE_LOWER_RE
+from envipat.formula import (
+    _D_NOT_BEFORE_LOWER_RE,
+    check_chemform,
+    check_ded,
+    mergeform,
+    multiform,
+    subform,
+)
 
 GOLDEN_CHEMFORM = Path(__file__).resolve().parents[2] / "tests" / "golden" / "check_chemform"
 GOLDEN_ALGEBRA = Path(__file__).resolve().parents[2] / "tests" / "golden" / "formula_algebra"
@@ -216,6 +222,7 @@ def test_check_chemform_case_004_get_list():
             zip(
                 exp.loc[exp["formula"] == f, "element"],
                 exp.loc[exp["formula"] == f, "count"],
+                strict=True,
             )
         )
         assert got[i] == expected, f
@@ -362,7 +369,7 @@ def test_check_ded_case_006_valid_pairs():
     # canonicalized result is asserted directly in
     # test_check_ded_d_canonicalized_to_deuterium below instead.
     df = _read_golden(GOLDEN_ALGEBRA / "case_006.csv")
-    for i, row in df.iterrows():
+    for _, row in df.iterrows():
         if row["formula"] == "C4D10":
             continue
         got = check_ded([row["formula"]], row["deduct"])[0]

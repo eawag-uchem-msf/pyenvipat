@@ -266,7 +266,7 @@ def test_isopattern_matches_golden(case_id):
         # columns for a duplicate label, in that formula's own tokenizing
         # order on both sides -- see _read_stacked_csv/_split_by_compound).
         isotope_cols = list(dict.fromkeys(c for c in exp.columns if c not in ("m/z", "abundance")))
-        assert set(isotope_cols) == set(c for c in g.columns if c not in ("m/z", "abundance"))
+        assert set(isotope_cols) == {c for c in g.columns if c not in ("m/z", "abundance")}
         for col in isotope_cols:
             np.testing.assert_array_equal(
                 g[col].to_numpy(dtype=np.int64), exp[col].to_numpy(dtype=np.int64)
@@ -318,7 +318,12 @@ def _envelope_kwargs_for_case(p: dict[str, str]) -> dict:
         dmz = _ENVELOPE_DMZ_PPM
     else:
         raise AssertionError(f"unexpected dmz mode {dmz_name!r}")
-    return dict(ppm=p["ppm"] == "TRUE", dmz=dmz, env=p["env"], resolution=float(p["resolution"]))
+    return {
+        "ppm": p["ppm"] == "TRUE",
+        "dmz": dmz,
+        "env": p["env"],
+        "resolution": float(p["resolution"]),
+    }
 
 
 @pytest.mark.parametrize("case_id", sorted(ENVELOPE_CASES))

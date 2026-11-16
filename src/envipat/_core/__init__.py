@@ -13,4 +13,4 @@ This subpackage intentionally has no pure-Python logic of its own; import
 ``enviPat_py`` directly for the available functions.
 """
 
-from . import enviPat_py  # noqa: F401
+import envipat._core.enviPat_py as enviPat_py  # noqa: F401

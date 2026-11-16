@@ -158,7 +158,7 @@ def isopattern(
     if threshold > 100 or threshold < 0:
         raise ValueError("invalid threshold; 0<=threshold<100.")
     if emass != _DEFAULT_EMASS:
-        warnings.warn("You are sure that is the mass of an electrone?")
+        warnings.warn("You are sure that is the mass of an electrone?", stacklevel=2)
     if algo not in _ALGOS:
         raise ValueError("invalid algo argument!")
     if rel_to not in (0, 1, 2, 3, 4):
@@ -185,7 +185,7 @@ def isopattern(
     iso_abu = isotopes.iloc[:, 3].to_numpy(dtype=np.float64)
 
     pattern: dict = {}
-    for formula, charge_i in zip(chemforms, charges):
+    for formula, charge_i in zip(chemforms, charges, strict=True):
         try:
             result = algo_fn(
                 sum=formula,
@@ -204,7 +204,9 @@ def isopattern(
         if return_iso_calc_amount:
             pattern[formula] = dict(
                 zip(
-                    result["element_names"], (int(c) for c in result["element_all_iso_calc_amount"])
+                    result["element_names"],
+                    (int(c) for c in result["element_all_iso_calc_amount"]),
+                    strict=True,
                 )
             )
             continue

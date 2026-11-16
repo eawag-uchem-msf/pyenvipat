@@ -68,8 +68,4 @@ def r_seq(from_: float, to: float, by: float) -> np.ndarray:
     x = from_ + np.arange(n_int + 1, dtype=np.float64) * by
     # Correct for floating point overshoot on the last element, exactly as
     # R's seq.default does (pmin/pmax against `to`).
-    if by > 0:
-        x = np.minimum(x, to)
-    else:
-        x = np.maximum(x, to)
-    return x
+    return np.minimum(x, to) if by > 0 else np.maximum(x, to)

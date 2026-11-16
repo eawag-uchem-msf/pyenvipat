@@ -56,7 +56,7 @@ def _data_path(filename: str):
     """Return an importlib.resources Traversable for a file under
     ``envipat/data/``. Works both from a repo checkout and an installed
     (including zipped) wheel."""
-    return resources.files(_ANCHOR).joinpath(_DATA_SUBDIR, filename)
+    return resources.files(_ANCHOR) / _DATA_SUBDIR / filename
 
 
 @lru_cache(maxsize=1)
@@ -74,9 +74,11 @@ def _load_isotopes() -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def _load_chemforms() -> pd.Series:
-    with resources.as_file(_data_path("chemforms.txt")) as path:
-        with open(path, "r", encoding="utf-8") as fh:
-            lines = [line.rstrip("\n") for line in fh]
+    with (
+        resources.as_file(_data_path("chemforms.txt")) as path,
+        open(path, encoding="utf-8") as fh,
+    ):
+        lines = [line.rstrip("\n") for line in fh]
     return pd.Series(lines, name="chemform")
 
 

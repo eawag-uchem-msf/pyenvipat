@@ -41,7 +41,7 @@ def _read_csv_columns(path: Path) -> dict[str, list[str]]:
         header = next(reader)
         cols: dict[str, list[str]] = {h: [] for h in header}
         for row in reader:
-            for h, v in zip(header, row):
+            for h, v in zip(header, row, strict=True):
                 cols[h].append(v)
     return cols
 
@@ -51,7 +51,7 @@ def _float_col(cols: dict[str, list[str]], name: str) -> np.ndarray:
 
 
 def _int_col(cols: dict[str, list[str]], name: str) -> np.ndarray:
-    return np.array([int(round(float(v))) for v in cols[name]], dtype=np.int32)
+    return np.array([round(float(v)) for v in cols[name]], dtype=np.int32)
 
 
 def _parse_params(params: str) -> dict[str, str]:
@@ -207,16 +207,16 @@ def test_pattern_matches_golden(case_id, reduced_isotopes, full_isotopes):
     else:
         elem, iso, mass, abu = full_isotopes
 
-    call_kwargs = dict(
-        sum=p["s1"],
-        peak_limit=int(float(p["pl"])),
-        threshold=float(p["t1"]),
-        rel_to_mono=int(p["rtm"]),
-        iso_list_elem=elem,
-        iso_list_iso=iso,
-        iso_list_mass=mass,
-        iso_list_abu=abu,
-    )
+    call_kwargs = {
+        "sum": p["s1"],
+        "peak_limit": int(float(p["pl"])),
+        "threshold": float(p["t1"]),
+        "rel_to_mono": int(p["rtm"]),
+        "iso_list_elem": elem,
+        "iso_list_iso": iso,
+        "iso_list_mass": mass,
+        "iso_list_abu": abu,
+    }
 
     if p["s1"] == "ZZZ99":
         with pytest.raises(core.EnviPatCoreError):
