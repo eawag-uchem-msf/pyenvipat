@@ -57,7 +57,7 @@ Repository = "https://gitlab.eawag.ch/joboog/pyenvipat"
 where = ["src"]
 
 [tool.setuptools.package-data]
-envipat = ["data/*.csv", "data/*.txt"]
+envipat = ["py.typed", "_core/*.pyi", "data/*.csv", "data/*.txt"]
 
 # --------------------------------------------------------------------- #
 # Tooling. CI (.gitlab-ci.yml) and pre-commit run these via noxfile.py.
@@ -83,11 +83,6 @@ warn_redundant_casts = true
 warn_unused_configs = true
 no_implicit_optional = true
 strict_equality = true
-
-# The compiled extension has no stub yet (.pyi is tracked in #24).
-[[tool.mypy.overrides]]
-module = ["envipat._core.enviPat_py"]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
