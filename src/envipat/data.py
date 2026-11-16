@@ -5,7 +5,8 @@ Mirrors the R package's ``data(isotopes)``, ``data(chemforms)``,
 CSV/TXT files backing this module live under ``envipat/data/`` (a plain
 resource directory, not a sub-package) and were exported once from the R
 package's datasets, with floating point columns written at full precision
-("%.17g") so every double round-trips bit-exactly.
+("%.17g"). pandas' default float parser may differ from the exact
+double by about 1 ULP on pandas 2.x; pandas 3 parses them exactly.
 
 Each dataset is exposed as a module-level attribute (``isotopes``,
 ``chemforms``, ``adducts``, ``resolution_list``) but is only read and parsed
@@ -61,15 +62,8 @@ def _data_path(filename: str):
 
 @lru_cache(maxsize=1)
 def _load_isotopes() -> pd.DataFrame:
-    # float_precision="round_trip": these CSVs were exported with sprintf
-    # ("%.17g", .) specifically to round-trip every double bit-exactly;
-    # pandas' default C float parser ("low") does not
-    # guarantee that for 17-significant-digit strings and silently drops the
-    # last 1-2 bits on some rows (discovered while verifying issue #7's
-    # check_chemform against R: isotopes.csv had 6/308 mass and 81/308
-    # abundance values off by 1 ULP, adducts.csv 1/51 Mass value).
     with resources.as_file(_data_path("isotopes.csv")) as path:
-        return pd.read_csv(path, float_precision="round_trip")
+        return pd.read_csv(path)
 
 
 @lru_cache(maxsize=1)
@@ -85,13 +79,13 @@ def _load_chemforms() -> pd.Series:
 @lru_cache(maxsize=1)
 def _load_adducts() -> pd.DataFrame:
     with resources.as_file(_data_path("adducts.csv")) as path:
-        return pd.read_csv(path, float_precision="round_trip")
+        return pd.read_csv(path)
 
 
 @lru_cache(maxsize=1)
 def _load_resolution_list() -> dict:
     with resources.as_file(_data_path("resolution_list.csv")) as path:
-        long_df = pd.read_csv(path, float_precision="round_trip")
+        long_df = pd.read_csv(path)
     curves: dict = {}
     for name, group in long_df.groupby("name", sort=False):
         curves[name] = group[["mz", "R"]].reset_index(drop=True)
