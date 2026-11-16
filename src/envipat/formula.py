@@ -82,7 +82,9 @@ internals exactly.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
+from typing import Literal, overload
 
 import pandas as pd
 
@@ -326,12 +328,34 @@ def _build_isotope_ref(isotopes: pd.DataFrame) -> _IsotopeRef:
     return ref
 
 
+@overload
 def check_chemform(
     isotopes: pd.DataFrame,
-    chemforms,
+    chemforms: str | Iterable[str],
+    get_sorted: bool = ...,
+    get_list: Literal[False] = ...,
+) -> pd.DataFrame: ...
+@overload
+def check_chemform(
+    isotopes: pd.DataFrame,
+    chemforms: str | Iterable[str],
+    get_sorted: bool = ...,
+    *,
+    get_list: Literal[True],
+) -> list[dict[str, int]]: ...
+@overload
+def check_chemform(
+    isotopes: pd.DataFrame,
+    chemforms: str | Iterable[str],
+    get_sorted: bool = ...,
+    get_list: bool = ...,
+) -> pd.DataFrame | list[dict[str, int]]: ...
+def check_chemform(
+    isotopes: pd.DataFrame,
+    chemforms: str | Iterable[str],
     get_sorted: bool = False,
     get_list: bool = False,
-):
+) -> pd.DataFrame | list[dict[str, int]]:
     """Check and normalize chemical formulas; compute monoisotopic mass.
 
     Port of R's ``check_chemform``.
@@ -421,7 +445,7 @@ def check_chemform(
     return pd.DataFrame({"warning": warn, "new_formula": new_formula, "monoisotopic_mass": mass})
 
 
-def check_ded(formulas, deduct) -> list:
+def check_ded(formulas: str | Iterable[str], deduct: str) -> list[bool]:
     """Check whether ``deduct`` is fully contained in each of ``formulas``.
 
     Port of R's ``check_ded``. ``formulas`` and
@@ -468,7 +492,7 @@ def check_ded(formulas, deduct) -> list:
     return out
 
 
-def mergeform(formula1, formula2) -> list:
+def mergeform(formula1: str | Iterable[str], formula2: str | Iterable[str]) -> list[str]:
     """Combine chemical formulas by summing element counts.
 
     Port of R's ``mergeform``. Both arguments must
@@ -528,7 +552,7 @@ def mergeform(formula1, formula2) -> list:
     return out
 
 
-def subform(formula1, formula2) -> list:
+def subform(formula1: str | Iterable[str], formula2: str | Iterable[str]) -> list[str]:
     """Subtract ``formula2`` from each of ``formula1``.
 
     Port of R's ``subform``. Both arguments must already
@@ -588,7 +612,7 @@ def subform(formula1, formula2) -> list:
     return out
 
 
-def multiform(formula_in, fact) -> list:
+def multiform(formula_in: str | Iterable[str], fact: float) -> list[str]:
     """Multiply every element count in a chemical formula by a factor.
 
     Port of R's ``multiform``. Must already be a

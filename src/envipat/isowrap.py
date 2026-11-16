@@ -24,6 +24,8 @@ Returns whatever :func:`envipat.vdetect.vdetect` returns: a
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import pandas as pd
 
 from .envelope import envelope
@@ -38,18 +40,18 @@ _DEFAULT_EMASS = 0.00054857990924
 def isowrap(
     isotopes: pd.DataFrame,
     checked: pd.DataFrame,
-    resolution,
+    resolution: float | Sequence[float],
     threshold: float = 0.1,
-    charge=1,
+    charge: float | Sequence[float] | bool = 1,
     emass: float = _DEFAULT_EMASS,
     algo: int = 2,
     ppm: bool = False,
-    dmz="get",
+    dmz: float | str = "get",
     frac: float = 0.25,
     env: str = "Gaussian",
     detect: str = "centroid",
     verbose: bool = True,
-):
+) -> dict[str, pd.DataFrame | str]:
     """Run the full isopattern -> envelope -> vdetect pipeline.
 
     Port of R's ``isowrap``; see module docstring for

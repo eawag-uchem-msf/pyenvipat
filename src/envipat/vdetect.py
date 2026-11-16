@@ -39,7 +39,7 @@ def vdetect(
     profiles: Mapping,
     detect: str = "centroid",
     verbose: bool = True,
-):
+) -> dict[str, pd.DataFrame | str]:
     """Detect centroids, intensoids or valleys in envelope profile(s).
 
     Port of R's ``vdetect``.

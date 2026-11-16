@@ -1,3 +1,5 @@
 # setuptools puts Extension .c sources into the sdist automatically, but not the headers
 # they #include; without these the sdist cannot be built into a wheel.
 include src/envipat/_core/*.h
+include src/envipat/py.typed
+include src/envipat/_core/*.pyi

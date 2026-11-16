@@ -57,7 +57,7 @@ Repository = "https://gitlab.eawag.ch/uchem/msf-server/pyenvipat"
 where = ["src"]
 
 [tool.setuptools.package-data]
-envipat = ["data/*.csv", "data/*.txt"]
+envipat = ["py.typed", "_core/*.pyi", "data/*.csv", "data/*.txt"]
 
 # --------------------------------------------------------------------- #
 # Tooling. CI (.gitlab-ci.yml) and pre-commit run these via noxfile.py.
@@ -84,16 +84,14 @@ warn_unused_configs = true
 no_implicit_optional = true
 strict_equality = true
 
-# The compiled extension has no stub yet (.pyi is tracked in #24).
-[[tool.mypy.overrides]]
-module = ["envipat._core.enviPat_py"]
-ignore_missing_imports = true
-
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
 addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
 xfail_strict = true
+# Catch new uses of arguments pandas 3 deprecates (pandas 2.x has no Pandas4Warning
+# class, so match the message instead of the category).
+filterwarnings = ["error:The 'float_precision' argument is deprecated"]
 
 [tool.cibuildwheel]
 # Binary wheels for CPython 3.10-3.13. Linux (#21): manylinux_2_28 + musllinux_1_2,

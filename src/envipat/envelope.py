@@ -40,7 +40,8 @@ raised ``EnviPatCoreError`` and a legitimate zero-length result.
 from __future__ import annotations
 
 import sys
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -56,12 +57,12 @@ _ENV_TYPES = {"Gaussian": 0, "CauchyLorentz": 1}
 def envelope(
     pattern: Mapping,
     ppm: bool = False,
-    dmz="get",
+    dmz: float | str = "get",
     frac: float = 0.25,
     env: str = "Gaussian",
-    resolution=5e5,
+    resolution: float | Sequence[float] = 5e5,
     verbose: bool = True,
-):
+) -> dict[str, pd.DataFrame | str]:
     """Convolute isotope pattern(s) into their theoretical envelope profile(s).
 
     Port of R's ``envelope``.
@@ -106,8 +107,9 @@ def envelope(
     pattern = dict(pattern)
     n = len(pattern)
 
+    resolution_list: list[float]
     if hasattr(resolution, "__len__") and not isinstance(resolution, str):
-        resolution_list = list(resolution)
+        resolution_list = list(cast("Sequence[float]", resolution))
         if len(resolution_list) != n and len(resolution_list) > 1:
             raise ValueError("length of resolution does not match length of pattern list!\n")
     else:
