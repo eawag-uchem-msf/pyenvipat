@@ -100,10 +100,10 @@ wheels:linux:
   services:
     - docker:29-dind
   variables:
-    DOCKER_HOST: tcp://docker:2376
-    DOCKER_TLS_CERTDIR: /certs
-    DOCKER_TLS_VERIFY: "1"
-    DOCKER_CERT_PATH: /certs/client
+    # The runner does not share a /certs volume between job and service, so dind
+    # runs without TLS; it is only reachable on the job's own service network.
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
     CIBW_BUILD_VERBOSITY: "1"
   parallel:
     matrix:
