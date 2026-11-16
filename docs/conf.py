@@ -7,12 +7,22 @@ Build with ``nox -s docs`` (what CI runs) or directly with
 
 from __future__ import annotations
 
+from importlib.metadata import version as dist_version
+
 import envipat
 
 project = "pyEnvipat"
 author = "Johannes Boog, Martin Loos, Christian Gerber"
 copyright = "Eawag; GPL-2.0-only"
 version = release = envipat.__version__
+
+# An editable install keeps the metadata of the version it was installed with, so a
+# version bump without reinstalling would make the docs and `pip show` disagree.
+if dist_version("pyEnvipat") != release:
+    raise RuntimeError(
+        f"envipat.__version__ is {release}, but the installed pyEnvipat is "
+        f"{dist_version('pyEnvipat')}; reinstall with `pip install -e .[docs]`"
+    )
 
 extensions = [
     "sphinx.ext.autodoc",

@@ -6,7 +6,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyEnvipat"
-version = "0.2.0"
+# Single source of truth: envipat.__version__ ([tool.setuptools.dynamic] below).
+dynamic = ["version"]
 description = "Isotope pattern, profile and centroid calculation for mass spectrometry"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -59,6 +60,10 @@ Repository = "https://gitlab.eawag.ch/uchem/msf-server/pyenvipat"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Read statically from the source (no import), so the build never needs the extension.
+[tool.setuptools.dynamic]
+version = { attr = "envipat.__version__" }
 
 [tool.setuptools.package-data]
 envipat = ["data/*.csv", "data/*.txt"]

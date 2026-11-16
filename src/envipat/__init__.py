@@ -35,6 +35,8 @@ from .isowrap import isowrap
 from .resolution import get_resolution
 from .vdetect import vdetect
 
+# The only place the version is defined: pyproject.toml reads it from here, and the docs
+# show it.
 __version__ = "0.2.0"
 
 __all__ = [
