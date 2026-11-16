@@ -1,0 +1,44 @@
+# Mirrors the CI quality stage (.gitlab-ci.yml -> noxfile.py). Keep the ruff/mypy
+# versions in sync with the `dev` extra in pyproject.toml.
+#   pre-commit install        # once per clone
+#   pre-commit run --all-files
+# Never let a hook rewrite these: tests/golden/ holds frozen R reference fixtures, and the
+# vendored C algorithm sources must stay byte-identical to upstream (see CLAUDE.md).
+# iso_core.* and enviPat_py.c are this project's own C code and are checked.
+exclude: |
+  (?x)^(
+    tests/golden/.*|
+    src/envipat/_core/(combination|element|isotope|parse|peak|profile)\.[ch]|
+    src/envipat/_core/(data|preferences)\.h
+  )$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.5
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.4.1
+    hooks:
+      - id: mypy
+        # Same as CI's `nox -s typecheck`: check the package per [tool.mypy] in pyproject.toml.
+        pass_filenames: false
+        args: []
+        additional_dependencies:
+          - numpy>=1.24
+          - pandas>=2.0
+          - pandas-stubs
+          - scipy-stubs
