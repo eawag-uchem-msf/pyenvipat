@@ -48,6 +48,17 @@ typecheck:
   script:
     - nox -s typecheck
 
+# Every MR must raise envipat.__version__ above the target branch's (the docs and the
+# package metadata read it from there). The job clone is shallow, so fetch the target.
+version-bump:
+  extends: .nox
+  stage: quality
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - git fetch --depth=1 origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - nox -s version_bump -- FETCH_HEAD
+
 # Our own C files (iso_core.c, enviPat_py.c) with -Wall -Wextra -Werror; the vendored
 # files' warnings are triaged in setup.py.
 c-warnings:
