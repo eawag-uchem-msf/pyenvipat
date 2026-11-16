@@ -11,13 +11,14 @@ tolerance), not an allclose().
 Five of the iso_pattern/iso_pattern_4 cases (case_006..case_010, formula
 C10H15Cl2) call the C core with the *full* isotopes table rather than a
 committed, reduced one; that table is the packaged
-src/envipat/data/isotopes.csv (a full-precision export of R's
+envipat/data/isotopes.csv, read from the installed package (a full-precision export of R's
 data(isotopes)).
 """
 
 from __future__ import annotations
 
 import csv
+from importlib import resources
 from pathlib import Path
 
 import numpy as np
@@ -27,7 +28,6 @@ from envipat._core import enviPat_py as core
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GOLDEN_DIR = REPO_ROOT / "tests" / "golden" / "c_direct"
-ISOTOPES_CSV = REPO_ROOT / "src" / "envipat" / "data" / "isotopes.csv"
 
 
 # --------------------------------------------------------------------- #
@@ -94,8 +94,9 @@ def reduced_isotopes():
 
 @pytest.fixture(scope="session")
 def full_isotopes():
-    """The full isotopes table, as packaged with envipat."""
-    return _load_isotopes_csv(ISOTOPES_CSV)
+    """The full isotopes table, as packaged with the *installed* envipat."""
+    with resources.as_file(resources.files("envipat") / "data" / "isotopes.csv") as path:
+        return _load_isotopes_csv(path)
 
 
 # --------------------------------------------------------------------- #
