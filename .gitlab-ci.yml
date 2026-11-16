@@ -3,8 +3,9 @@
 # Jobs run in the standard python images, which ship the C compiler the extension needs.
 # Linux wheels (#21) are built with cibuildwheel ([tool.cibuildwheel] in pyproject.toml).
 # Windows (#22) and macOS (#23) jobs need runners for those platforms (none yet).
+# Docs (#28) are built by `docs` and published to GitLab Pages by `pages` on main.
 
-stages: [quality, test, build]
+stages: [quality, test, build, deploy]
 
 # Merge request pipelines instead of a second push pipeline while an MR is open; branch
 # pipelines (default branch, web runs) and tag pipelines are unchanged.
@@ -117,3 +118,27 @@ wheels:linux:
   artifacts:
     expire_in: 1 week
     paths: [wheelhouse/]
+
+# Sphinx site (docs/), warnings are errors; the tutorial notebook is executed during the
+# build. The HTML is kept so reviewers can browse an MR's docs from the job artifacts.
+docs:
+  extends: .nox
+  stage: build
+  script:
+    - nox -s docs
+  artifacts:
+    expire_in: 1 week
+    paths: [docs/_build/html/]
+
+# GitLab Pages: publish the docs job's build (no rebuild) from the default branch only.
+pages:
+  stage: deploy
+  image: alpine:3.22
+  needs: [docs]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  cache: []
+  script:
+    - mv docs/_build/html public
+  artifacts:
+    paths: [public]
