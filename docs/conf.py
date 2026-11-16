@@ -70,3 +70,7 @@ myst_enable_extensions = ["colon_fence"]
 # --- HTML ------------------------------------------------------------------
 html_theme = "furo"
 html_title = f"pyEnvipat {release}"
+html_static_path = ["_static"]
+html_logo = "_static/envipat_logo.svg"
+# The logo's text is black, so custom.css puts it on a white background in dark mode.
+html_css_files = ["custom.css"]

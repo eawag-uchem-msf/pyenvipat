@@ -1,0 +1,17 @@
+/* The logo has black text: give it a white background in furo's dark mode
+   (explicit dark theme, and "auto" following a dark system preference). */
+body[data-theme="dark"] .sidebar-logo,
+body[data-theme="dark"] img.envipat-logo {
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  body:not([data-theme="light"]) .sidebar-logo,
+  body:not([data-theme="light"]) img.envipat-logo {
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 6px 10px;
+  }
+}
