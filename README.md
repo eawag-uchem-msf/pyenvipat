@@ -131,6 +131,20 @@ result = ep.isowrap(
 )
 ```
 
+## Documentation
+
+The documentation site (installation, quickstart, a step-by-step tutorial
+notebook and the API reference generated from the docstrings) is built with
+Sphinx from `docs/` and published to the project's GitLab Pages from `main`
+(GitLab: *Deploy > Pages*). Build it locally with:
+
+```bash
+nox -s docs        # or: pip install -e ".[docs]" && sphinx-build docs docs/_build/html
+```
+
+The tutorial (`docs/tutorial.ipynb`) is stored without outputs and executed
+on every docs build, so it doubles as a runnable example.
+
 ## Package layout
 
 The public pipeline functions listed below are also re-exported at the
@@ -174,6 +188,7 @@ nox -s tests-3.12         # tests on a single Python version
 nox -s lint typecheck     # quality checks only
 nox -s format             # apply ruff formatting
 nox -s build              # sdist + wheel into dist/
+nox -s docs               # Sphinx site into docs/_build/html (warnings are errors)
 pre-commit run --all-files
 ```
 

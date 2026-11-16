@@ -6,6 +6,7 @@
     nox -s build              # sdist + wheel into dist/, checks sdist contents
     nox -s cwarnings          # our own C files must compile warning-free (-Werror)
     nox -s sanitize           # test suite against an ASan/UBSan build (GCC, Linux)
+    nox -s docs               # Sphinx site into docs/_build/html, warnings are errors
 
 `tests` builds a wheel and installs it non-editably, so the suite runs against
 the installed package (compiled extension, package data), not the source tree.
@@ -21,9 +22,10 @@ from pathlib import Path
 import nox
 
 PYTHONS = ["3.10", "3.11", "3.12", "3.13"]
-LINT_PATHS = ["src", "tests", "noxfile.py", "setup.py"]
+LINT_PATHS = ["src", "tests", "docs", "noxfile.py", "setup.py"]
 ROOT = Path(__file__).parent
 CORE_DIR = ROOT / "src" / "envipat" / "_core"
+DOCS_DIR = ROOT / "docs"
 
 # C files we maintain. The vendored algorithm files stay unmodified, so their
 # triaged warnings (see setup.py) are not held to -Werror.
@@ -149,6 +151,19 @@ def sanitize(session: nox.Session) -> None:
     finally:
         # Never leave sanitizer objects in build/ for a later normal build.
         shutil.rmtree(ROOT / "build", ignore_errors=True)
+
+
+@nox.session
+def docs(session: nox.Session) -> None:
+    """Build the Sphinx site into docs/_build/html; any warning fails the build.
+
+    The tutorial notebook is executed during the build, so it also checks that the
+    examples still run. Pass e.g. `-- -b linkcheck` to add sphinx-build options.
+    """
+    session.install("-e", ".[docs]")
+    out = DOCS_DIR / "_build" / "html"
+    shutil.rmtree(out, ignore_errors=True)
+    session.run("sphinx-build", "-W", "--keep-going", *session.posargs, str(DOCS_DIR), str(out))
 
 
 def _check_sdist(sdist: Path) -> None:

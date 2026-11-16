@@ -41,11 +41,15 @@ dev = [
     "build>=1.2",
     "twine>=6",
 ]
-# Placeholder toolchain; the docs site itself (Sphinx vs. MkDocs) is #28.
+# Sphinx site under docs/ (nox -s docs); myst-nb executes docs/*.ipynb on every
+# build, which needs a Jupyter kernel and matplotlib for the plots.
 docs = [
     "sphinx>=8",
     "furo",
     "numpydoc>=1.8",
+    "myst-nb>=1.1",
+    "ipykernel",
+    "matplotlib>=3.7",
 ]
 
 [project.urls]
