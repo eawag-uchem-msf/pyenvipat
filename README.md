@@ -24,7 +24,7 @@ verified against reference outputs frozen from enviPat v2.8; see
 Not yet published to PyPI -- install from a source checkout:
 
 ```bash
-git clone git@gitlab.eawag.ch:joboog/pyenvipat.git
+git clone git@gitlab.eawag.ch:uchem/msf-server/pyenvipat.git
 cd pyenvipat
 pip install .
 ```
@@ -185,8 +185,8 @@ quick loop on an editable install, `pytest` works directly.
 
 ## Citation
 
-If you use `envipat`/`enviPat` in your work, please cite the original
-algorithm and R package:
+If you use `envipat`/`pyEnviPat` in your work, please cite the original
+algorithm authors:
 
 Loos, M.; Gerber, C.; Corona, F.; Hollender, J.; Singer, H. (2015).
 Accelerated isotope fine structure calculation using pruned transition
@@ -195,7 +195,7 @@ trees, *Analytical Chemistry*, 87(11), 5738-5744.
 
 ## License
 
-GPL-2.0-only, same as the original R package -- see [`LICENSE`](LICENSE).
+GPL-2.0-only, see [`LICENSE`](LICENSE).
 This is a derivative work of the original `enviPat` R package by Martin
 Loos and Christian Gerber (EAWAG); see [`AUTHORS`](AUTHORS) for full
 attribution and [`NOTICE`](NOTICE) for how the port relates to the
