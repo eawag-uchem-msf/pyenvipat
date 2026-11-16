@@ -1,11 +1,5 @@
 # pyEnvipat
 
-```{image} _static/envipat_logo.svg
-:alt: enviPat logo
-:width: 420px
-:class: envipat-logo
-```
-
 Python port of the R package [enviPat](https://github.com/blosloos/enviPat)
 (Loos, Gerber et al., Eawag): isotope fine structure patterns, theoretical mass
 spectrometry envelopes, centroid detection and instrument resolution
