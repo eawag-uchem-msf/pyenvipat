@@ -15,7 +15,7 @@ import time.
 Data files and shapes
 ----------------------
 - ``isotopes.csv``: columns ``element, isotope, mass, abundance, ratioC``,
-  loaded as a :class:`pandas.DataFrame` (308 rows).
+  loaded as a :class:`pandas.DataFrame` (309 rows).
 - ``chemforms.txt``: one chemical formula per line, loaded as a
   :class:`pandas.Series` of strings (107 elements).
 - ``adducts.csv``: 9 columns matching R's ``adducts`` -
@@ -32,7 +32,7 @@ Examples
 --------
 >>> import envipat.data as data
 >>> data.isotopes.shape
-(308, 5)
+(309, 5)
 >>> data.chemforms.iloc[0]
 'C4H4Cl1N3O1'
 >>> list(data.adducts.columns)
