@@ -95,6 +95,22 @@ testpaths = ["tests"]
 addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
 xfail_strict = true
 
+[tool.cibuildwheel]
+# Binary wheels for CPython 3.10-3.13. Linux (#21): manylinux_2_28 + musllinux_1_2,
+# x86_64 only (aarch64 would need emulation or arm runners). Windows (#22) and
+# macOS (#23) wheels need CI runners for those platforms.
+build = "cp310-* cp311-* cp312-* cp313-*"
+archs = ["native"]
+build-frontend = "build"
+# Every wheel is installed into a fresh environment and has to pass the full suite,
+# including the golden fixtures under tests/.
+test-extras = ["test"]
+test-command = "pytest {project}/tests -p no:cacheprovider"
+
+[tool.cibuildwheel.linux]
+manylinux-x86_64-image = "manylinux_2_28"
+musllinux-x86_64-image = "musllinux_1_2"
+
 [tool.coverage.run]
 source = ["envipat"]
 branch = true

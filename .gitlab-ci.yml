@@ -1,7 +1,8 @@
-# OS-independent CI skeleton. Every job calls a nox session (noxfile.py), so CI and
-# local runs match:  nox -s lint format typecheck tests build
+# CI pipeline. Every job except the wheel build calls a nox session (noxfile.py), so
+# CI and local runs match:  nox -s lint format typecheck cwarnings tests sanitize build
 # Jobs run in the standard python images, which ship the C compiler the extension needs.
-# OS-specific jobs and wheels: Linux #21, Windows #22, macOS #23.
+# Linux wheels (#21) are built with cibuildwheel ([tool.cibuildwheel] in pyproject.toml).
+# Windows (#22) and macOS (#23) jobs need runners for those platforms (none yet).
 
 stages: [quality, test, build]
 
@@ -46,6 +47,14 @@ typecheck:
   script:
     - nox -s typecheck
 
+# Our own C files (iso_core.c, enviPat_py.c) with -Wall -Wextra -Werror; the vendored
+# files' warnings are triaged in setup.py.
+c-warnings:
+  extends: .nox
+  stage: quality
+  script:
+    - nox -s cwarnings
+
 test:
   extends: .nox
   stage: test
@@ -66,6 +75,14 @@ test:
         coverage_format: cobertura
         path: coverage.xml
 
+# Full test suite against an AddressSanitizer + UndefinedBehaviorSanitizer build of the
+# C extension (GCC). Any finding aborts the run.
+sanitize:
+  extends: .nox
+  stage: test
+  script:
+    - nox -s sanitize
+
 build:
   extends: .nox
   stage: build
@@ -74,3 +91,29 @@ build:
   artifacts:
     expire_in: 1 week
     paths: [dist/]
+
+# manylinux_2_28 / musllinux_1_2 x86_64 wheels for CPython 3.10-3.13; each wheel is
+# tested in its own container. cibuildwheel drives docker, hence docker-in-docker.
+wheels:linux:
+  stage: build
+  image: docker:29
+  services:
+    - docker:29-dind
+  variables:
+    # The runner does not share a /certs volume between job and service, so dind
+    # runs without TLS; it is only reachable on the job's own service network.
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    CIBW_BUILD_VERBOSITY: "1"
+  parallel:
+    matrix:
+      - CIBW_SKIP: ["*-musllinux_*", "*-manylinux_*"]
+  before_script:
+    - apk add --no-cache python3
+    - python3 -m venv /opt/cibw
+    - /opt/cibw/bin/pip install cibuildwheel==4.3.5
+  script:
+    - /opt/cibw/bin/cibuildwheel --platform linux --output-dir wheelhouse
+  artifacts:
+    expire_in: 1 week
+    paths: [wheelhouse/]

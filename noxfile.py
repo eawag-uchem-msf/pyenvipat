@@ -3,7 +3,9 @@
     nox                       # lint, format, typecheck, tests on every Python
     nox -s tests-3.12         # tests on one Python version
     nox -s format -- --check  # what CI runs (check only, no rewrite)
-    nox -s build              # sdist + wheel into dist/
+    nox -s build              # sdist + wheel into dist/, checks sdist contents
+    nox -s cwarnings          # our own C files must compile warning-free (-Werror)
+    nox -s sanitize           # test suite against an ASan/UBSan build (GCC, Linux)
 
 `tests` builds a wheel and installs it non-editably, so the suite runs against
 the installed package (compiled extension, package data), not the source tree.
@@ -12,6 +14,8 @@ the installed package (compiled extension, package data), not the source tree.
 from __future__ import annotations
 
 import os
+import shutil
+import tarfile
 from pathlib import Path
 
 import nox
@@ -19,6 +23,15 @@ import nox
 PYTHONS = ["3.10", "3.11", "3.12", "3.13"]
 LINT_PATHS = ["src", "tests", "noxfile.py", "setup.py"]
 ROOT = Path(__file__).parent
+CORE_DIR = ROOT / "src" / "envipat" / "_core"
+
+# C files we maintain. The vendored algorithm files stay unmodified, so their
+# triaged warnings (see setup.py) are not held to -Werror.
+OWN_C_FILES = ["iso_core.c", "enviPat_py.c"]
+
+# GCC: -fno-sanitize-recover makes any UBSan finding abort instead of logging and
+# continuing, so the test run fails on it. setup.py still appends -O2.
+SANITIZE_FLAGS = "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g"
 
 # The test import must resolve to site-packages, never to ./src.
 ASSERT_INSTALLED = """
@@ -57,14 +70,28 @@ def typecheck(session: nox.Session) -> None:
     session.run("mypy", *session.posargs)
 
 
+def _install_fresh_wheel(session: nox.Session, env: dict[str, str] | None = None) -> None:
+    """Build a wheel from a clean build/ dir and install it with the test extra.
+
+    setuptools skips compiling when build/ already holds an up-to-date extension,
+    which would mix e.g. a sanitizer build into a normal one; so start clean.
+    """
+    wheelhouse = Path(session.create_tmp()) / "wheelhouse"
+    shutil.rmtree(wheelhouse, ignore_errors=True)
+    shutil.rmtree(ROOT / "build", ignore_errors=True)
+    session.install("build")
+    session.run("python", "-m", "build", "--wheel", "--outdir", str(wheelhouse), str(ROOT), env=env)
+    (wheel,) = wheelhouse.glob("*.whl")
+    session.install(f"{wheel}[test]")
+    # Same version as a previous run's wheel would count as already installed.
+    session.install("--force-reinstall", "--no-deps", str(wheel))
+
+
 @nox.session(python=PYTHONS)
 def tests(session: nox.Session) -> None:
     """pytest + coverage against the installed wheel."""
-    wheelhouse = Path(session.create_tmp()) / "wheelhouse"
-    session.install("build")
-    session.run("python", "-m", "build", "--wheel", "--outdir", str(wheelhouse), str(ROOT))
-    wheels = sorted(wheelhouse.glob("*.whl"), key=lambda p: p.stat().st_mtime)
-    session.install(f"{wheels[-1]}[test]")
+    _install_fresh_wheel(session)
+    session.run("python", "-c", ASSERT_INSTALLED)
 
     session.run("python", "-c", ASSERT_INSTALLED)
 
@@ -79,10 +106,79 @@ def tests(session: nox.Session) -> None:
 
 
 @nox.session
+def cwarnings(session: nox.Session) -> None:
+    """Compile our own C files with -Wall -Wextra -Werror (GCC/Clang)."""
+    session.install("numpy")
+    cc = os.environ.get("CC", "cc")
+    includes = session.run(
+        "python",
+        "-c",
+        "import numpy, sysconfig; print(sysconfig.get_paths()['include']); "
+        "print(numpy.get_include())",
+        silent=True,
+    )
+    assert isinstance(includes, str)
+    inc_flags = [f"-I{d}" for d in [str(CORE_DIR), *includes.split()]]
+    for name in OWN_C_FILES:
+        session.run(
+            cc, "-c", "-O2", "-Wall", "-Wextra", "-Werror", *inc_flags,
+            str(CORE_DIR / name), "-o", os.devnull, external=True,
+        )  # fmt: skip
+
+
+@nox.session
+def sanitize(session: nox.Session) -> None:
+    """Run the test suite against an ASan/UBSan build of the extension (GCC, Linux).
+
+    The interpreter itself is not instrumented, so the ASan runtime is preloaded.
+    Leak detection is off: CPython and NumPy keep allocations alive at exit.
+    """
+    cc = os.environ.get("CC", "gcc")
+    libasan = session.run(cc, "-print-file-name=libasan.so", silent=True, external=True)
+    assert isinstance(libasan, str)
+    build_env = {"CC": cc, "CFLAGS": SANITIZE_FLAGS, "LDFLAGS": SANITIZE_FLAGS}
+    try:
+        _install_fresh_wheel(session, env=build_env)
+        run_env = {
+            "LD_PRELOAD": libasan.strip(),
+            "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1",
+            "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1",
+        }
+        session.run("python", "-c", ASSERT_INSTALLED, env=run_env)
+        session.run("pytest", "-p", "no:cacheprovider", *session.posargs, env=run_env)
+    finally:
+        # Never leave sanitizer objects in build/ for a later normal build.
+        shutil.rmtree(ROOT / "build", ignore_errors=True)
+
+
+def _check_sdist(sdist: Path) -> None:
+    """Fail unless the sdist ships every C source/header and data file."""
+    required = [
+        *CORE_DIR.glob("*.c"),
+        *CORE_DIR.glob("*.h"),
+        *(ROOT / "src" / "envipat" / "data").glob("*"),
+    ]
+    with tarfile.open(sdist) as tar:
+        # Members are "<name>-<version>/<path>"; strip the top-level directory.
+        members = {m.split("/", 1)[1] for m in tar.getnames() if "/" in m}
+    missing = sorted(
+        p.relative_to(ROOT).as_posix()
+        for p in required
+        if p.relative_to(ROOT).as_posix() not in members
+    )
+    if missing:
+        raise RuntimeError(f"sdist {sdist.name} is missing: {', '.join(missing)}")
+    print(f"sdist {sdist.name}: all {len(required)} C/header/data files present")
+
+
+@nox.session
 def build(session: nox.Session) -> None:
-    """Build sdist + wheel into dist/ and validate their metadata."""
+    """Build sdist + wheel into dist/, validate metadata and sdist contents."""
     session.install("build", "twine")
     for f in (ROOT / "dist").glob("*"):
         f.unlink()
+    shutil.rmtree(ROOT / "build", ignore_errors=True)
     session.run("python", "-m", "build", "--outdir", "dist", str(ROOT))
     session.run("twine", "check", "--strict", *map(str, (ROOT / "dist").glob("*")))
+    (sdist,) = (ROOT / "dist").glob("*.tar.gz")
+    _check_sdist(sdist)
