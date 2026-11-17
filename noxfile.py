@@ -8,6 +8,8 @@
     nox -s sanitize           # test suite against an ASan/UBSan build (GCC, Linux)
     nox -s docs               # Sphinx site into docs/_build/html, warnings are errors
     nox -s version_bump       # version must be higher than on origin/main (CI: every MR)
+    nox -s release_check -- v1.2.3  # tag must equal v + __version__ (CI: tag pipelines)
+    nox -s audit              # pip-audit the installed runtime dependencies
 
 `tests` builds a wheel and installs it non-editably, so the suite runs against
 the installed package (compiled extension, package data), not the source tree.
@@ -31,6 +33,7 @@ ROOT = Path(__file__).parent
 CORE_DIR = ROOT / "src" / "envipat" / "_core"
 DOCS_DIR = ROOT / "docs"
 VERSION_FILE = "src/envipat/__init__.py"
+CITATION_FILE = ROOT / "CITATION.cff"
 
 # C files we maintain. The vendored algorithm files stay unmodified, so their
 # triaged warnings (see setup.py) are not held to -Werror.
@@ -47,6 +50,14 @@ p = pathlib.Path(envipat.__file__).resolve()
 print("envipat imported from", p)
 if "site-packages" not in p.parts:
     sys.exit("envipat was imported from the source tree, not the installed wheel")
+"""
+
+# Pinned list of what is installed in a session, except pyEnvipat itself (input to pip-audit).
+FREEZE = """
+import importlib.metadata as m
+names = {d.metadata["Name"]: d.version for d in m.distributions()}
+names.pop("pyEnvipat", None)
+print("\\n".join(f"{n}=={v}" for n, v in sorted(names.items(), key=lambda i: i[0].lower())))
 """
 
 nox.needs_version = ">=2025.2.9"
@@ -201,6 +212,47 @@ def version_bump(session: nox.Session) -> None:
             f"bump __version__ in {VERSION_FILE}"
         )
     print(f"version bumped: {base} ({base_ref}) -> {head}")
+
+
+@nox.session(python=False)
+def release_check(session: nox.Session) -> None:
+    """Fail unless the release tag is `v<__version__>` and CITATION.cff agrees.
+
+    The tag defaults to $CI_COMMIT_TAG; pass it explicitly otherwise:
+    `nox -s release_check -- v1.2.3`.
+    """
+    tag = session.posargs[0] if session.posargs else os.environ.get("CI_COMMIT_TAG", "")
+    version = _read_version((ROOT / VERSION_FILE).read_text())
+    match = re.search(r"^version:\s*(\S+)\s*$", CITATION_FILE.read_text(), re.MULTILINE)
+    citation = match.group(1) if match else None
+    errors = []
+    if tag != f"v{version}":
+        errors.append(f"tag {tag!r} does not match v{version} ({VERSION_FILE})")
+    if citation != version:
+        errors.append(f"CITATION.cff version {citation!r} does not match {version}")
+    if errors:
+        session.error("; ".join(errors))
+    print(f"release {tag}: {VERSION_FILE} and CITATION.cff agree")
+
+
+@nox.session
+def audit(session: nox.Session) -> None:
+    """pip-audit the packages pyEnvipat's runtime dependencies resolve to.
+
+    The environment is recorded before pip-audit is installed, so the tool's own
+    dependencies are not audited. pyEnvipat itself is not on PyPI, so it is left out.
+    """
+    session.install(".")
+    frozen = session.run("python", "-c", FREEZE, silent=True)
+    assert isinstance(frozen, str)
+    requirements = Path(session.create_tmp()) / "runtime-requirements.txt"
+    requirements.write_text(frozen)
+    print(frozen)
+    session.install("pip-audit>=2.7")
+    session.run(
+        "pip-audit", "--requirement", str(requirements), "--no-deps", "--disable-pip",
+        "--progress-spinner", "off", *session.posargs,
+    )  # fmt: skip
 
 
 def _check_sdist(sdist: Path) -> None:
