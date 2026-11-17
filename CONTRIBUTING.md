@@ -75,8 +75,46 @@ name the issue in the MR (`Closes #<n>`).
    [semantic versioning](https://semver.org/), including docs-only ones.
    Change `__version__` in `src/envipat/__init__.py` (`pyproject.toml` reads
    it from there) and `version` in `CITATION.cff`. The CI job `version-bump`
-   (`nox -s version_bump -- <target-ref>`) fails if the version was not raised.
-5. Make sure CI is green and respond to review comments.
+   (`nox -s version_bump -- <target-ref>`) fails if the version was not raised,
+   and `tests/python/test_version.py` fails if `CITATION.cff` disagrees.
+5. Describe user-facing changes in `CHANGELOG.md` under `[Unreleased]`, and add a
+   `Changelog: added|changed|fixed|removed|deprecated|security` trailer to the
+   commits that make them.
+6. Make sure CI is green and respond to review comments.
+
+## Releasing
+
+Releases are cut from `main` by a maintainer. A release is a git tag `vX.Y.Z`
+equal to `envipat.__version__`; the version itself was already raised by the
+MRs since the last release.
+
+One-time setup (GitLab, *Settings > Repository > Protected tags*): protect the
+pattern `v*` so only maintainers can create release tags. The `release-check`
+job fails for an unprotected tag.
+
+1. Make sure the pipeline on `main` is green.
+2. Open a release MR that raises the version to `X.Y.Z` (as every MR does)
+   and, in `CHANGELOG.md`, renames `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD`,
+   adds an empty `[Unreleased]` section and updates the compare links at the
+   bottom. GitLab can draft entries from the commit trailers:
+   `glab api "projects/:id/repository/changelog?version=X.Y.Z"`.
+3. Tag the merge commit and push the tag:
+
+   ```bash
+   git tag -a vX.Y.Z -m "pyEnvipat X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+4. The tag pipeline runs all checks plus:
+   - `release-check`: tag protected, tag == `v` + `__version__`, and
+     `CITATION.cff` agrees (`nox -s release_check -- vX.Y.Z` locally);
+   - `release`: collects the sdist and the manylinux/musllinux wheels with a
+     `SHA256SUMS` file as job artifacts that never expire.
+5. Optionally create a GitLab release (*Deploy > Releases*) for the tag, with
+   the changelog section as notes and links to the `release` job artifacts.
+
+Nothing is uploaded to PyPI: the `Private :: Do Not Upload` classifier makes
+PyPI reject uploads until publishing is set up after the move to GitHub (#31).
 
 ## Licensing
 
