@@ -1,0 +1,57 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite the original enviPat algorithm paper
+  (preferred citation) and, where relevant, this Python port.
+title: pyEnvipat
+type: software
+version: 0.2.2
+license: GPL-2.0-only
+abstract: >-
+  Python port of the R package enviPat: isotope fine structure patterns,
+  theoretical mass spectrometry envelopes, centroid detection and instrument
+  resolution interpolation.
+repository-code: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat
+authors:
+  - family-names: Loos
+    given-names: Martin
+    affiliation: Eawag
+  - family-names: Gerber
+    given-names: Christian
+    affiliation: Eawag
+  - family-names: Boog
+    given-names: Johannes
+    email: johannesboog@yahoo.de
+    affiliation: Eawag
+references:
+  - type: software
+    title: enviPat
+    authors:
+      - family-names: Loos
+        given-names: Martin
+      - family-names: Gerber
+        given-names: Christian
+    repository-code: https://github.com/blosloos/enviPat
+    notes: Original R package this project ports.
+preferred-citation:
+  type: article
+  title: >-
+    Accelerated Isotope Fine Structure Calculation Using Pruned Transition
+    Trees
+  authors:
+    - family-names: Loos
+      given-names: Martin
+    - family-names: Gerber
+      given-names: Christian
+    - family-names: Corona
+      given-names: Francesco
+    - family-names: Hollender
+      given-names: Juliane
+    - family-names: Singer
+      given-names: Heinz
+  journal: Analytical Chemistry
+  volume: 87
+  issue: 11
+  start: 5738
+  end: 5744
+  year: 2015
+  doi: 10.1021/acs.analchem.5b00941

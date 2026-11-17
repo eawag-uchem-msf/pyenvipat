@@ -37,7 +37,7 @@ pip install -e ".[dev]"
 pre-commit install
 ```
 
-See [Development](#development) for running checks and tests.
+See [Development](#development) for running checks and tests, and [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a merge request.
 
 Requirements: Python >= 3.10, a C compiler (to build the bundled
 `envipat._core.enviPat_py` extension at install time), and `numpy` at
