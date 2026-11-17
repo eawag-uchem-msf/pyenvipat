@@ -71,9 +71,11 @@ name the issue in the MR (`Closes #<n>`).
 1. Pick or open an issue (use the templates in `.gitlab/issue_templates`).
 2. Branch from `main` as `<issue-number>-<short-slug>`.
 3. Commit, push, and open an MR using the MR template; one concern per MR.
-4. Increase the version number (`version` in `pyproject.toml`) in every MR,
-   following [semantic versioning](https://semver.org/). This is required
-   for every new MR, including docs-only ones.
+4. Increase the version number in every MR, following
+   [semantic versioning](https://semver.org/), including docs-only ones.
+   Change `__version__` in `src/envipat/__init__.py` (`pyproject.toml` reads
+   it from there) and `version` in `CITATION.cff`. The CI job `version-bump`
+   (`nox -s version_bump -- <target-ref>`) fails if the version was not raised.
 5. Make sure CI is green and respond to review comments.
 
 ## Licensing
