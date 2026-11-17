@@ -12,6 +12,9 @@ dist/
 .pytest_cache/
 .venv/
 
+# Sphinx output (nox -s docs)
+docs/_build/
+
 # nox / coverage / lint caches and CI reports
 .nox/
 .coverage

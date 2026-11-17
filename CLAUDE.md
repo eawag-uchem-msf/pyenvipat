@@ -24,6 +24,8 @@ nox -s tests                    # builds + installs a wheel, pytest + coverage o
 nox -s cwarnings                # own C files (iso_core.c, enviPat_py.c) with -Wall -Wextra -Werror
 nox -s sanitize                 # pytest against an ASan/UBSan build of the extension (GCC, Linux)
 nox -s build                    # sdist + wheel, twine check, sdist must ship all .c/.h and data files
+nox -s version_bump             # __version__ must be higher than on origin/main (CI: MR pipelines only)
+nox -s docs                     # Sphinx site (-W, nitpicky), executes docs/tutorial.ipynb; CI `pages` publishes it from main
 
 # Linux wheels as CI builds them (needs docker; config in [tool.cibuildwheel])
 cibuildwheel --platform linux
@@ -43,6 +45,7 @@ After changing any `.c`/`.h` file under `src/envipat/_core/`, re-run `pip instal
   - `resolution.py` — `get_resolution` (port of R's `getR`, fitted with scipy's `make_smoothing_spline`; not bit-compatible with R); `_rseq.py` holds R's `seq` semantics
   - `data.py` + `data/` — lazily loaded `isotopes`, `chemforms`, `adducts`, `resolution_list` (CSV/TXT)
 - `src/envipat/_core/` — C code: `iso_core.c/h` (pure-C core), `enviPat_py.c` (CPython bindings), and the vendored original algorithm files (`combination`, `profile`, `parse`, `element`, `isotope`, `peak`, `data.h`, `preferences.h`). `setup.py` builds them into `envipat._core.enviPat_py`, with flags per compiler (`-O2 -Wall -Wextra` for GCC/Clang, `/O2` for MSVC); the vendored files' remaining warnings are triaged there.
+- `docs/` — Sphinx site (furo, numpydoc, myst-nb): `api/` pages autodoc one module each; `data.rst` documents the `envipat.data` datasets by hand (they are lazy module attributes autodoc cannot see); `tutorial.ipynb` is committed without outputs and executed on every build. Cross-references must resolve (`nitpicky`), so private names go in double backticks, not `:func:`.
 
 ### Typical workflow
 
@@ -70,3 +73,4 @@ vdetect()          ← centroid / intensoid / valley detection
 
 - Keep the vendored C algorithm files unmodified so floating-point behaviour matches the original; changes belong in `iso_core.c`/`enviPat_py.c`.
 - Commit messages follow Conventional Commits.
+- Every MR bumps `__version__` in `src/envipat/__init__.py`, the single source of the version (pyproject reads it via `[tool.setuptools.dynamic]`, the docs via `envipat.__version__`). CI job `version-bump` (`nox -s version_bump`) enforces it on MR pipelines.

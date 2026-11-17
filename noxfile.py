@@ -6,6 +6,8 @@
     nox -s build              # sdist + wheel into dist/, checks sdist contents
     nox -s cwarnings          # our own C files must compile warning-free (-Werror)
     nox -s sanitize           # test suite against an ASan/UBSan build (GCC, Linux)
+    nox -s docs               # Sphinx site into docs/_build/html, warnings are errors
+    nox -s version_bump       # version must be higher than on origin/main (CI: every MR)
 
 `tests` builds a wheel and installs it non-editably, so the suite runs against
 the installed package (compiled extension, package data), not the source tree.
@@ -14,16 +16,21 @@ the installed package (compiled extension, package data), not the source tree.
 from __future__ import annotations
 
 import os
+import re
 import shutil
+import subprocess
 import tarfile
 from pathlib import Path
 
 import nox
+from packaging.version import Version  # a dependency of nox itself
 
 PYTHONS = ["3.10", "3.11", "3.12", "3.13"]
-LINT_PATHS = ["src", "tests", "noxfile.py", "setup.py"]
+LINT_PATHS = ["src", "tests", "docs", "noxfile.py", "setup.py"]
 ROOT = Path(__file__).parent
 CORE_DIR = ROOT / "src" / "envipat" / "_core"
+DOCS_DIR = ROOT / "docs"
+VERSION_FILE = "src/envipat/__init__.py"
 
 # C files we maintain. The vendored algorithm files stay unmodified, so their
 # triaged warnings (see setup.py) are not held to -Werror.
@@ -149,6 +156,51 @@ def sanitize(session: nox.Session) -> None:
     finally:
         # Never leave sanitizer objects in build/ for a later normal build.
         shutil.rmtree(ROOT / "build", ignore_errors=True)
+
+
+@nox.session
+def docs(session: nox.Session) -> None:
+    """Build the Sphinx site into docs/_build/html; any warning fails the build.
+
+    The tutorial notebook is executed during the build, so it also checks that the
+    examples still run. Pass e.g. `-- -b linkcheck` to add sphinx-build options.
+    """
+    session.install("-e", ".[docs]")
+    out = DOCS_DIR / "_build" / "html"
+    shutil.rmtree(out, ignore_errors=True)
+    session.run("sphinx-build", "-W", "--keep-going", *session.posargs, str(DOCS_DIR), str(out))
+
+
+def _read_version(source: str) -> str:
+    match = re.search(r'^__version__ = "([^"]+)"$', source, re.MULTILINE)
+    if match is None:
+        raise RuntimeError(f"no __version__ assignment found in {VERSION_FILE}")
+    return match.group(1)
+
+
+@nox.session(python=False)
+def version_bump(session: nox.Session) -> None:
+    """Fail unless envipat.__version__ is higher than on the base branch.
+
+    The base ref defaults to origin/main; CI passes the MR's target branch:
+    `nox -s version_bump -- origin/<target>`.
+    """
+    base_ref = session.posargs[0] if session.posargs else "origin/main"
+    base_source = subprocess.run(
+        ["git", "show", f"{base_ref}:{VERSION_FILE}"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    base = Version(_read_version(base_source))
+    head = Version(_read_version((ROOT / VERSION_FILE).read_text()))
+    if head <= base:
+        session.error(
+            f"version {head} is not higher than {base} on {base_ref}; "
+            f"bump __version__ in {VERSION_FILE}"
+        )
+    print(f"version bumped: {base} ({base_ref}) -> {head}")
 
 
 def _check_sdist(sdist: Path) -> None:

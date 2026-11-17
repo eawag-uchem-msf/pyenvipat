@@ -131,6 +131,20 @@ result = ep.isowrap(
 )
 ```
 
+## Documentation
+
+The documentation site (installation, quickstart, a step-by-step tutorial
+notebook and the API reference generated from the docstrings) is built with
+Sphinx from `docs/` and published to the project's GitLab Pages from `main`
+(GitLab: *Deploy > Pages*). Build it locally with:
+
+```bash
+nox -s docs        # or: pip install -e ".[docs]" && sphinx-build docs docs/_build/html
+```
+
+The tutorial (`docs/tutorial.ipynb`) is stored without outputs and executed
+on every docs build, so it doubles as a runnable example.
+
 ## Package layout
 
 The public pipeline functions listed below are also re-exported at the
@@ -174,6 +188,8 @@ nox -s tests-3.12         # tests on a single Python version
 nox -s lint typecheck     # quality checks only
 nox -s format             # apply ruff formatting
 nox -s build              # sdist + wheel into dist/
+nox -s docs               # Sphinx site into docs/_build/html (warnings are errors)
+nox -s version_bump       # version must be higher than on origin/main
 pre-commit run --all-files
 ```
 
@@ -182,6 +198,11 @@ suite runs against the installed package rather than the source tree, with a
 coverage threshold set in `[tool.coverage.report]`. Missing Python versions are
 skipped locally (`uv python install 3.13` provides one when nox uses uv). For a
 quick loop on an editable install, `pytest` works directly.
+
+The version is defined only in `src/envipat/__init__.py` (`__version__`);
+the package metadata and the docs read it from there. Every merge request must
+raise it: the `version-bump` CI job fails an MR whose version is not higher than
+its target branch's.
 
 ## Citation
 

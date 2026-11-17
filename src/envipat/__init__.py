@@ -35,7 +35,9 @@ from .isowrap import isowrap
 from .resolution import get_resolution
 from .vdetect import vdetect
 
-__version__ = "0.2.0"
+# The only place the version is defined: pyproject.toml reads it from here, and the docs
+# show it. Every MR must raise it (CI job `version-bump`, `nox -s version_bump`).
+__version__ = "0.2.1"
 
 __all__ = [
     "__version__",

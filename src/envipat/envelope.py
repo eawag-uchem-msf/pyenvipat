@@ -20,7 +20,7 @@ depending on ``ppm``/``dmz``:
   ``dmz2 = mean(m) / resolution``; ``seq(min(m) - 1, max(m) + 0.5,
   dmz2 * frac)``.
 
-The two ``seq()``-based branches are reproduced via :func:`envipat._rseq.r_seq`
+The two ``seq()``-based branches are reproduced via ``envipat._rseq.r_seq``
 (see that module for why this is a semantic, not bit-exact, port of R's
 ``seq.default`` -- this is *the* known source of floating-point divergence
 from R, which is why ``envelope``/``vdetect``
