@@ -1,7 +1,9 @@
 # Python port of R package enviPat (Loos, Gerber et al., EAWAG),
 # licensed GPL-2.0-only, same as upstream. See AUTHORS and NOTICE.
 [build-system]
-requires = ["setuptools>=68", "numpy>=1.24"]
+# setuptools>=77.0.3: PEP 639 license expression + license-files. numpy>=2.0: the
+# extension is compiled against numpy 2 headers, which also run on numpy 1.x at runtime.
+requires = ["setuptools>=77.0.3", "numpy>=2.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -12,6 +14,34 @@ description = "Isotope pattern, profile and centroid calculation for mass spectr
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-2.0-only"
+license-files = ["LICENSE", "NOTICE", "AUTHORS"]
+keywords = [
+    "mass spectrometry",
+    "isotope pattern",
+    "isotopic fine structure",
+    "envelope",
+    "centroid",
+    "chemistry",
+    "enviPat",
+]
+# No `License ::` classifier: deprecated next to a license expression (PEP 639).
+# `Private :: Do Not Upload` makes PyPI reject uploads until publishing is set up (#31).
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: C",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Typing :: Typed",
+    "Private :: Do Not Upload",
+]
 authors = [
     { name = "Johannes Boog", email = "johannesboog@yahoo.de" },
     { name = "Martin Loos" },
@@ -41,6 +71,7 @@ dev = [
     "pre-commit>=4",
     "build>=1.2",
     "twine>=6",
+    "pip-audit>=2.7",
 ]
 # Sphinx site under docs/ (nox -s docs); myst-nb executes docs/*.ipynb on every
 # build, which needs a Jupyter kernel and matplotlib for the plots.
@@ -53,9 +84,12 @@ docs = [
     "matplotlib>=3.7",
 ]
 
+# Well-known labels (packaging.python.org well-known-project-urls); switch to GitHub in #31.
 [project.urls]
 Homepage = "https://www.envipat.eawag.ch/"
-Repository = "https://gitlab.eawag.ch/uchem/msf-server/pyenvipat"
+Source = "https://gitlab.eawag.ch/uchem/msf-server/pyenvipat"
+Issues = "https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/issues"
+Changelog = "https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/blob/main/CHANGELOG.md"
 "Original R Package" = "https://github.com/blosloos/enviPat"
 
 [tool.setuptools.packages.find]
