@@ -1,5 +1,6 @@
-# Mirrors the CI quality stage (.gitlab-ci.yml -> noxfile.py). Keep the ruff/mypy
-# versions in sync with the `dev` extra in pyproject.toml.
+# Mirrors the CI quality stage (.gitlab-ci.yml -> noxfile.py). The ruff/mypy revs
+# match the `dev` extra in pyproject.toml; Renovate updates both together
+# (pinning policy: CONTRIBUTING.md, "Dependencies and pinning").
 #   pre-commit install        # once per clone
 #   pre-commit run --all-files
 # Never let a hook rewrite these: tests/golden/ holds frozen R reference fixtures, and the

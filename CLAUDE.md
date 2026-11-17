@@ -24,7 +24,8 @@ nox -s tests                    # builds + installs a wheel, pytest + coverage o
 nox -s cwarnings                # own C files (iso_core.c, enviPat_py.c) with -Wall -Wextra -Werror
 nox -s sanitize                 # pytest against an ASan/UBSan build of the extension (GCC, Linux)
 nox -s build                    # sdist + wheel, twine check, sdist must ship all .c/.h and data files
-nox -s version_bump             # __version__ must be higher than on origin/main (CI: MR pipelines only)
+nox -s version_bump             # __version__ must be higher than on origin/main (CI: MR pipelines only, not renovate/* branches)
+nox -s renovate_check           # validate renovate.json (needs npx); pinning policy in CONTRIBUTING.md
 nox -s docs                     # Sphinx site (-W, nitpicky), executes docs/tutorial.ipynb; CI `pages` publishes it from main
 
 # Linux wheels as CI builds them (needs docker; config in [tool.cibuildwheel])
