@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import csv
 import re
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -283,6 +284,21 @@ def test_isopattern_multiple_duplicate_formulas_all_named():
     assert "C1H4" in str(excinfo.value)
     assert "C2H6" in str(excinfo.value)
     assert "C3H8" not in str(excinfo.value)
+
+
+def test_isopattern_nondefault_emass_warns_at_caller():
+    # The warning names the given value, is a UserWarning and points at the
+    # caller's line (stacklevel=2), not at isopattern.py.
+    with pytest.warns(UserWarning, match=r"emass=0\.0006 differs from the electron mass") as rec:
+        isopattern(ISOTOPES, "C1H4", threshold=0.1, emass=0.0006, verbose=False)
+    assert len(rec) == 1
+    assert rec[0].filename == __file__
+
+
+def test_isopattern_default_emass_does_not_warn():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        isopattern(ISOTOPES, "C1H4", threshold=0.1, verbose=False)
 
 
 # --------------------------------------------------------------------- #

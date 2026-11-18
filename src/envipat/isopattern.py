@@ -146,6 +146,11 @@ def isopattern(
         than once -- see module docstring; this diverges from R, which
         silently keeps only the last duplicate's result.
 
+    Warns
+    -----
+    UserWarning
+        If ``emass`` differs from the default electron mass.
+
     Notes
     -----
     R's ``plotit`` argument (base-graphics stick plot per formula) is
@@ -158,7 +163,11 @@ def isopattern(
     if threshold > 100 or threshold < 0:
         raise ValueError("invalid threshold; 0<=threshold<100.")
     if emass != _DEFAULT_EMASS:
-        warnings.warn("You are sure that is the mass of an electrone?", stacklevel=2)
+        warnings.warn(
+            f"emass={emass!r} differs from the electron mass ({_DEFAULT_EMASS!r}); are you sure?",
+            UserWarning,
+            stacklevel=2,
+        )
     if algo not in _ALGOS:
         raise ValueError("invalid algo argument!")
     if rel_to not in (0, 1, 2, 3, 4):
