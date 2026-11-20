@@ -8,6 +8,7 @@
     nox -s sanitize           # test suite against an ASan/UBSan build (GCC, Linux)
     nox -s docs               # Sphinx site into docs/_build/html, warnings are errors
     nox -s version_bump       # version must be higher than on origin/main (CI: every MR)
+    nox -s renovate_check     # renovate.json against CI's Renovate version (needs npx)
 
 `tests` builds a wheel and installs it non-editably, so the suite runs against
 the installed package (compiled extension, package data), not the source tree.
@@ -201,6 +202,25 @@ def version_bump(session: nox.Session) -> None:
             f"bump __version__ in {VERSION_FILE}"
         )
     print(f"version bumped: {base} ({base_ref}) -> {head}")
+
+
+@nox.session(python=False)
+def renovate_check(session: nox.Session) -> None:
+    """Validate renovate.json with the Renovate version CI runs (needs Node.js/npx)."""
+    ci = (ROOT / ".gitlab-ci.yml").read_text()
+    match = re.search(r"ghcr\.io/renovatebot/renovate:(\S+)", ci)
+    if match is None:
+        session.error("no ghcr.io/renovatebot/renovate image in .gitlab-ci.yml")
+    session.run(
+        "npx",
+        "--yes",
+        "--package",
+        f"renovate@{match.group(1)}",
+        "--",
+        "renovate-config-validator",
+        "--strict",
+        external=True,
+    )
 
 
 def _check_sdist(sdist: Path) -> None:
