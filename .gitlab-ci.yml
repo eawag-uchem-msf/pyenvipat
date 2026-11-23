@@ -4,6 +4,8 @@
 # Linux wheels (#21) are built with cibuildwheel ([tool.cibuildwheel] in pyproject.toml).
 # Windows (#22) and macOS (#23) jobs need runners for those platforms (none yet).
 # Docs (#28) are built by `docs` and published to GitLab Pages by `pages` on main.
+# Releases (#26): a protected tag vX.Y.Z runs the whole pipeline plus `release-check`
+# and `release`, which keeps the sdist and wheels as artifacts (no upload; PyPI is #31).
 # Renovate (#33, renovate.json) runs from a weekly pipeline schedule with RENOVATE=true;
 # that pipeline runs only the `renovate` job. Setup: CONTRIBUTING.md.
 
@@ -68,6 +70,30 @@ version-bump:
   script:
     - git fetch --depth=1 origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
     - nox -s version_bump -- FETCH_HEAD
+
+# Known vulnerabilities in the runtime dependencies (the resolved numpy/pandas/scipy
+# stack), not in dev tooling.
+audit:
+  extends: .nox
+  stage: quality
+  script:
+    - nox -s audit
+
+# Release tags only: the tag must be protected (Settings > Repository > Protected tags,
+# pattern v*) and equal v<__version__>, and CITATION.cff must agree. Fails before the
+# wheels are built.
+release-check:
+  extends: .nox
+  stage: quality
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d/
+  script:
+    - |
+      if [ "$CI_COMMIT_REF_PROTECTED" != "true" ]; then
+        echo "tag $CI_COMMIT_TAG is not protected; protect v* tags before releasing" >&2
+        exit 1
+      fi
+    - nox -s release_check -- "$CI_COMMIT_TAG"
 
 # renovate.json must pass the validator of the Renovate version that runs it. Locally:
 # nox -s renovate_check (needs Node.js).
@@ -181,6 +207,26 @@ pages:
     - mv docs/_build/html public
   artifacts:
     paths: [public]
+
+# Release artifacts for a v* tag: the sdist from `build` (its plain linux_x86_64 wheel is
+# not distributable) and the manylinux/musllinux wheels, with SHA-256 sums. Kept
+# indefinitely; nothing is uploaded.
+# Windows (#22) and macOS (#23) wheels join here once those jobs exist.
+release:
+  stage: deploy
+  image: alpine:3.22
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d/
+  needs: [release-check, build, wheels:linux]
+  cache: []
+  script:
+    - mkdir -p release
+    - cp dist/*.tar.gz wheelhouse/*.whl release/
+    - cd release && sha256sum * | tee SHA256SUMS
+  artifacts:
+    name: pyEnvipat-$CI_COMMIT_TAG
+    expire_in: never
+    paths: [release/]
 
 # Opens and rebases the dependency MRs and the Dependency Dashboard issue. Needs the
 # masked CI variables RENOVATE_TOKEN (project access token: api, write_repository,

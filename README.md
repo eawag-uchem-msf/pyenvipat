@@ -190,6 +190,7 @@ nox -s format             # apply ruff formatting
 nox -s build              # sdist + wheel into dist/
 nox -s docs               # Sphinx site into docs/_build/html (warnings are errors)
 nox -s version_bump       # version must be higher than on origin/main
+nox -s audit              # pip-audit the runtime dependencies
 pre-commit run --all-files
 ```
 
@@ -202,7 +203,8 @@ quick loop on an editable install, `pytest` works directly.
 The version is defined only in `src/envipat/__init__.py` (`__version__`);
 the package metadata and the docs read it from there. Every merge request must
 raise it: the `version-bump` CI job fails an MR whose version is not higher than
-its target branch's.
+its target branch's. Changes are listed in [`CHANGELOG.md`](CHANGELOG.md);
+releases are tagged `vX.Y.Z` (see "Releasing" in `CONTRIBUTING.md`).
 
 ## Citation
 

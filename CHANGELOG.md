@@ -1,0 +1,83 @@
+# Changelog
+
+All notable changes to pyEnvipat are listed here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
+[semantic versioning](https://semver.org/). Releases are tagged `vX.Y.Z`; see
+"Releasing" in [CONTRIBUTING.md](CONTRIBUTING.md) for how this file is updated.
+
+## [Unreleased]
+
+### Added
+
+- Release process: a pipeline for a protected `vX.Y.Z` tag checks that the tag
+  matches `envipat.__version__` and `CITATION.cff`, and keeps the sdist and the
+  Linux wheels as release artifacts (no upload to PyPI yet).
+- `pip-audit` CI job and `nox -s audit` for known vulnerabilities in the runtime
+  dependencies.
+- PyPI metadata: classifiers, keywords, license files and well-known project
+  URLs. The `Private :: Do Not Upload` classifier blocks uploads until
+  publishing is set up.
+- This changelog.
+- Renovate opens weekly MRs for dev tools, pre-commit hooks and CI images;
+  the pinning policy is documented in `CONTRIBUTING.md`.
+
+### Changed
+
+- The build requires `setuptools>=77.0.3` (PEP 639 license metadata) and builds
+  against `numpy>=2.0`; the built extension still runs on numpy 1.24 and newer.
+
+### Fixed
+
+- `isopattern` warns about a non-default `emass` with an explicit `UserWarning`
+  that names the given and the default value (it read "electrone" before).
+
+## [0.2.2] - 2026-11-17
+
+### Added
+
+- Contributing guide, security policy, `CITATION.cff`, and GitLab issue and
+  merge request templates.
+
+## [0.2.1] - 2026-11-16
+
+### Added
+
+- Type hints for the public API, `py.typed` and a stub for the C extension.
+- `[81]Br` labelled isotope in the isotope list.
+- Sphinx documentation site with API reference and tutorial, published to
+  GitLab Pages.
+- CI on Linux: lint, type check, tests on Python 3.10-3.13, C warning check,
+  AddressSanitizer/UBSan run, sdist and manylinux/musllinux wheels.
+
+### Changed
+
+- The version is defined only in `envipat.__version__`; every merge request
+  must raise it.
+
+### Fixed
+
+- Elements are sorted stably, so m/z no longer depends on the C library's
+  `qsort`.
+- The sdist ships the C headers, so it can be built into a wheel.
+- CSV loaders no longer pass pandas' deprecated `float_precision` argument.
+
+## [0.2.0] - 2026-11-02
+
+### Removed
+
+- The R implementation; the Python port is complete.
+- **Breaking:** the `r_exact` method of `get_resolution`.
+
+## [0.1.0] - 2026-09-18
+
+### Added
+
+- First Python port of enviPat: C extension (`envipat._core.enviPat_py`),
+  bundled data, formula helpers, `isopattern`, `envelope`, `vdetect`,
+  `check_several`, `isowrap` and `get_resolution`, tested against golden
+  fixtures frozen from R enviPat v2.8.
+
+[Unreleased]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/compare/a485e1f...main
+[0.2.2]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/commit/a485e1f
+[0.2.1]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/commit/977d999
+[0.2.0]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/tags/0.2.0
