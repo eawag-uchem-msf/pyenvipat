@@ -15,6 +15,10 @@ Requirements:
   install time
 - `numpy` at build time (installed automatically by pip's build isolation)
 
+CI builds and tests the package on Linux, Windows (MSVC) and macOS (Intel and
+Apple Silicon), and releases ship binary wheels for these platforms, which need
+no C compiler.
+
 The runtime dependencies (`pandas`, `numpy`, `scipy`) are installed
 automatically. R is not needed: the reference data in {mod}`envipat.data` ships
 as plain CSV/TXT files.

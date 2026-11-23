@@ -108,9 +108,9 @@ the pattern `v*` so only maintainers can create release tags.
 4. The `release` workflow runs on the tag and:
    - `release-check`: tag == `v` + `__version__`, and `CITATION.cff` agrees
      (`nox -s release_check -- vX.Y.Z` locally);
-   - builds the sdist and the manylinux/musllinux wheels, publishes them as a
-     GitHub Release (with a `SHA256SUMS` file) using the changelog section as
-     release notes;
+   - builds the sdist and the manylinux/musllinux, Windows and macOS wheels,
+     publishes them as a GitHub Release (with a `SHA256SUMS` file) using the
+     changelog section as release notes;
    - uploads the sdist and wheels to PyPI via trusted publishing, gated by the
      `pypi` environment's required reviewer.
 

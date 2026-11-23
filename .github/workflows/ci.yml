@@ -1,7 +1,7 @@
 # Quality, test and build pipeline. Every job except `tests` calls a nox session
 # (noxfile.py), so CI and local runs match: nox -s lint format typecheck tests build.
-# Linux wheels are built separately (wheels.yml); release artifacts and PyPI
-# publishing run from release.yml on v* tags.
+# Linux, Windows and macOS wheels are built separately (wheels.yml); release
+# artifacts and PyPI publishing run from release.yml on v* tags.
 
 name: CI
 
@@ -73,12 +73,20 @@ jobs:
       - run: pip install nox uv
       - run: nox -s cwarnings
 
+  # Linux, Windows (MSVC, #22) and macOS on Intel and Apple Silicon (Apple clang,
+  # #23). The golden fixtures are compared exactly on every platform.
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-15-intel, macos-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        # Explicit bash (Git Bash on Windows) also sets -o pipefail, so a pytest
+        # failure is not hidden by `| tee`.
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -92,7 +100,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-reports-${{ matrix.python-version }}
+          name: test-reports-${{ matrix.os }}-${{ matrix.python-version }}
           path: |
             report.xml
             coverage.xml

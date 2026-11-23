@@ -21,6 +21,13 @@ CORE_DIR = "src/envipat/_core"
 # extra_compile_args after its own defaults (e.g. -O3 from sysconfig, /Ox on
 # MSVC), so appending it here is sufficient to win.
 #
+# -ffp-contract=off: never fuse a*b+c into one FMA instruction. Clang (Apple
+# clang on arm64 in particular) and GCC on aarch64 contract by default, which
+# rounds once instead of twice and breaks the exact-equality golden fixtures
+# (tests/test_core.py), frozen from x86_64 builds without FMA. On x86_64 without
+# -mfma there is no FMA to emit, so Linux/Windows x86_64 builds are unchanged.
+# MSVC does not contract by default (/fp:precise, no /fp:contract).
+#
 # -Wall -Wextra: the vendored algorithm files (combination.c, profile.c,
 # parse.c) emit warnings that were triaged and left as is, because those files
 # must stay unmodified (see CLAUDE.md):
@@ -34,8 +41,8 @@ CORE_DIR = "src/envipat/_core"
 # `cwarnings` nox session / CI job enforces that with -Werror.
 COMPILE_ARGS = {
     "msvc": ["/O2"],
-    "unix": ["-O2", "-Wall", "-Wextra"],  # GCC and Clang, incl. macOS and MinGW
-    "mingw32": ["-O2", "-Wall", "-Wextra"],
+    "unix": ["-O2", "-ffp-contract=off", "-Wall", "-Wextra"],  # GCC and Clang, incl. macOS
+    "mingw32": ["-O2", "-ffp-contract=off", "-Wall", "-Wextra"],
 }
 
 
