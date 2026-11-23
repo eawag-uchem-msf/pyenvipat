@@ -261,9 +261,9 @@ def renovate_check(session: nox.Session) -> None:
     """Validate renovate.json with the Renovate version CI runs (needs Node.js/npx)."""
     workflow_file = ROOT / ".github" / "workflows" / "renovate-config.yml"
     workflow = workflow_file.read_text()
-    match = re.search(r"ghcr\.io/renovatebot/renovate:(\S+)", workflow)
+    match = re.search(r"--package renovate@(\S+)", workflow)
     if match is None:
-        session.error(f"no ghcr.io/renovatebot/renovate image in {workflow_file}")
+        session.error(f"no `--package renovate@<version>` in {workflow_file}")
     session.run(
         "npx",
         "--yes",

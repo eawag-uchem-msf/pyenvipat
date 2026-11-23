@@ -13,7 +13,6 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    container: ghcr.io/renovatebot/renovate:44
     steps:
       - uses: actions/checkout@v4
-      - run: renovate-config-validator --strict
+      - run: npx --yes --package renovate@44 -- renovate-config-validator --strict
