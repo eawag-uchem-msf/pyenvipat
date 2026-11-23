@@ -1,3 +1,9 @@
+---
+name: Bug report
+about: Something is wrong or behaves unexpectedly
+labels: bug
+---
+
 ## Summary
 <!-- What is wrong? -->
 
@@ -14,5 +20,3 @@ import envipat as ep
 - pyEnvipat version:
 - Python / OS:
 - Installed from (source checkout / wheel):
-
-/label ~bug

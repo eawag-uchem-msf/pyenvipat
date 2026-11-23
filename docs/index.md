@@ -39,4 +39,4 @@ Accelerated isotope fine structure calculation using pruned transition trees,
 ## License
 
 GPL-2.0-only, like the original enviPat package. See the `LICENSE`, `AUTHORS`
-and `NOTICE` files in the [repository](https://gitlab.eawag.ch/uchem/msf-server/pyenvipat).
+and `NOTICE` files in the [repository](https://github.com/eawag-uchem-msf/pyenvipat).

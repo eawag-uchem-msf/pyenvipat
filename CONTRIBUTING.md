@@ -1,7 +1,7 @@
 # Contributing to pyEnvipat
 
 Thanks for helping. pyEnvipat computes isotope patterns and envelopes for mass spectrometry.
-Please read this page before opening a merge request (MR).
+Please read this page before opening a pull request (PR).
 
 ## Development setup
 
@@ -9,7 +9,7 @@ Requirements: Python >= 3.10 and a C compiler (the `envipat._core.enviPat_py`
 extension is built at install time).
 
 ```bash
-git clone git@gitlab.eawag.ch:joboog/pyenvipat.git
+git clone https://github.com/eawag-uchem-msf/pyenvipat.git
 cd pyenvipat
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
@@ -21,7 +21,7 @@ After changing any `.c`/`.h` file under `src/envipat/_core/`, run
 
 ## Checks and tests
 
-CI (`.gitlab-ci.yml`) runs the same [nox](https://nox.thea.codes/) sessions
+CI (`.github/workflows/`) runs the same [nox](https://nox.thea.codes/) sessions
 you can run locally:
 
 ```bash
@@ -33,7 +33,7 @@ pre-commit run --all-files
 ```
 
 Tool configuration (ruff, mypy, pytest, coverage threshold) lives in
-`pyproject.toml`. An MR must pass lint, format, type check and tests, and new
+`pyproject.toml`. A PR must pass lint, format, type check and tests, and new
 behavior needs new tests.
 
 ## Golden-fixture rule
@@ -46,7 +46,7 @@ regression baseline for the calculations.
 - A failing golden test means a result changed. Treat it as a regression and
   fix the code unless the change is intended.
 - If you believe a fixture is wrong, or a result should deliberately change,
-  open an issue first and explain the change in the MR description.
+  open an issue first and explain the change in the PR description.
   Tolerances and known divergences are documented in `tests/`.
 - The vendored original C sources (`combination`, `profile`, `parse`,
   `element`, `isotope`, `peak`, `data.h`, `preferences.h`) are likewise not
@@ -64,20 +64,20 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 Types in use: `feat`, `fix`, `docs`, `test`, `refactor`, `style`, `build`, `ci`,
 `chore`. Mark breaking changes with `!`. Keep commits small and logical, and
-name the issue in the MR (`Closes #<n>`).
+name the issue in the PR (`Closes #<n>`).
 
 ## Workflow
 
-1. Pick or open an issue (use the templates in `.gitlab/issue_templates`).
+1. Pick or open an issue (use the templates in `.github/ISSUE_TEMPLATE/`).
 2. Branch from `main` as `<issue-number>-<short-slug>`.
-3. Commit, push, and open an MR using the MR template; one concern per MR.
-4. Increase the version number in every MR, following
+3. Commit, push, and open a pull request using the PR template; one concern per PR.
+4. Increase the version number in every PR, following
    [semantic versioning](https://semver.org/), including docs-only ones.
    Change `__version__` in `src/envipat/__init__.py` (`pyproject.toml` reads
    it from there) and `version` in `CITATION.cff`. The CI job `version-bump`
    (`nox -s version_bump -- <target-ref>`) fails if the version was not raised,
    and `tests/python/test_version.py` fails if `CITATION.cff` disagrees.
-   Renovate MRs (branches `renovate/*`) are exempt: they only change tooling
+   Renovate PRs (branches `renovate/*`) are exempt: they only change tooling
    and CI images, never the package.
 5. Describe user-facing changes in `CHANGELOG.md` under `[Unreleased]`, and add a
    `Changelog: added|changed|fixed|removed|deprecated|security` trailer to the
@@ -88,18 +88,16 @@ name the issue in the MR (`Closes #<n>`).
 
 Releases are cut from `main` by a maintainer. A release is a git tag `vX.Y.Z`
 equal to `envipat.__version__`; the version itself was already raised by the
-MRs since the last release.
+PRs since the last release.
 
-One-time setup (GitLab, *Settings > Repository > Protected tags*): protect the
-pattern `v*` so only maintainers can create release tags. The `release-check`
-job fails for an unprotected tag.
+One-time setup (GitHub, *Settings > Rules > Rulesets*): a tag ruleset protecting
+the pattern `v*` so only maintainers can create release tags.
 
-1. Make sure the pipeline on `main` is green.
-2. Open a release MR that raises the version to `X.Y.Z` (as every MR does)
+1. Make sure CI on `main` is green.
+2. Open a release PR that raises the version to `X.Y.Z` (as every PR does)
    and, in `CHANGELOG.md`, renames `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD`,
    adds an empty `[Unreleased]` section and updates the compare links at the
-   bottom. GitLab can draft entries from the commit trailers:
-   `glab api "projects/:id/repository/changelog?version=X.Y.Z"`.
+   bottom.
 3. Tag the merge commit and push the tag:
 
    ```bash
@@ -107,16 +105,14 @@ job fails for an unprotected tag.
    git push origin vX.Y.Z
    ```
 
-4. The tag pipeline runs all checks plus:
-   - `release-check`: tag protected, tag == `v` + `__version__`, and
-     `CITATION.cff` agrees (`nox -s release_check -- vX.Y.Z` locally);
-   - `release`: collects the sdist and the manylinux/musllinux wheels with a
-     `SHA256SUMS` file as job artifacts that never expire.
-5. Optionally create a GitLab release (*Deploy > Releases*) for the tag, with
-   the changelog section as notes and links to the `release` job artifacts.
-
-Nothing is uploaded to PyPI: the `Private :: Do Not Upload` classifier makes
-PyPI reject uploads until publishing is set up after the move to GitHub (#31).
+4. The `release` workflow runs on the tag and:
+   - `release-check`: tag == `v` + `__version__`, and `CITATION.cff` agrees
+     (`nox -s release_check -- vX.Y.Z` locally);
+   - builds the sdist and the manylinux/musllinux wheels, publishes them as a
+     GitHub Release (with a `SHA256SUMS` file) using the changelog section as
+     release notes;
+   - uploads the sdist and wheels to PyPI via trusted publishing, gated by the
+     `pypi` environment's required reviewer.
 
 ## Dependencies and pinning
 
@@ -127,32 +123,24 @@ is installed into. Which dependencies are pinned, and how:
 |------|-------|--------|------------|
 | Runtime dependencies | `[project.dependencies]` | lower bound only, no upper cap | hand, only when the code needs a newer version |
 | Build requirements | `[build-system].requires` | lower bound only | hand |
-| ruff, mypy | `dev` extra **and** `.pre-commit-config.yaml` | exact pin, same version in both files | Renovate, one MR per tool |
+| ruff, mypy | `dev` extra **and** `.pre-commit-config.yaml` | exact pin, same version in both files | Renovate, one PR per tool |
 | Other test/dev/docs extras | `[project.optional-dependencies]` | lower bound or unpinned | hand |
 | pre-commit hooks | `.pre-commit-config.yaml` (`rev:`) | exact tag | Renovate |
-| CI images | `.gitlab-ci.yml` (`image:`) | major or minor tag (`python:3.12`, `alpine:3.22`, `docker:29`) | Renovate |
-| CI tools | `.gitlab-ci.yml` (`pip install x==y`) | exact pin | Renovate |
+| CI images | `.github/workflows/` (`image:`) | major or minor tag (`python:3.12`, `alpine:3.22`, `docker:29`) | Renovate |
+| CI tools | `.github/workflows/` (`pip install x==y`) | exact pin | Renovate |
 
 The test matrix (`python:$PYTHON_VERSION`) and the Python versions in
 `noxfile.py` and `[tool.cibuildwheel]` change only by hand.
 
 [Renovate](https://docs.renovatebot.com/) reads `renovate.json`. Once a week it
-opens MRs: one each for ruff and for mypy, one for a new Python in the CI default
-image, and one for all other minor and patch updates. Major updates get their own MRs.
+opens PRs: one each for ruff and for mypy, one for a new Python in the CI default
+image, and one for all other minor and patch updates. Major updates get their own PRs.
 Nothing is merged automatically. The Dependency Dashboard issue lists pending and
 rejected updates. Check a change to `renovate.json` with `nox -s renovate_check`
 (needs Node.js); CI runs the same validator in the `renovate-config` job.
 
-Renovate runs as the `renovate` CI job. Maintainers set it up once:
-
-1. Project access token (Settings > Access tokens): role Developer, scopes `api`
-   and `write_repository`. Store it as the masked, protected CI/CD variable
-   `RENOVATE_TOKEN`.
-2. A github.com personal access token without any scopes (pre-commit hooks are looked up
-   as GitHub tags, and release notes come from GitHub). Store it as the masked,
-   protected CI/CD variable `GITHUB_COM_TOKEN`.
-3. Pipeline schedule (Build > Pipeline schedules) on `main`, weekly, with the
-   variable `RENOVATE` = `true`. That pipeline runs only the `renovate` job.
+Renovate runs via the [Renovate GitHub App](https://github.com/apps/renovate),
+installed once on the repository (no CI job or token to manage).
 
 ## Licensing
 

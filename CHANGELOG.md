@@ -20,11 +20,25 @@ All notable changes to pyEnvipat are listed here. The format follows
 - This changelog.
 - Renovate opens weekly MRs for dev tools, pre-commit hooks and CI images;
   the pinning policy is documented in `CONTRIBUTING.md`.
+- GitHub Actions CI (`.github/workflows/`): lint, type check, tests, C warning
+  check, sanitizer run, build and Linux wheels on every push/PR, plus a
+  `release` workflow on `v*` tags that publishes a GitHub Release and uploads
+  to PyPI via trusted publishing (gated by the `pypi` environment's required
+  reviewer).
+- `.github/ISSUE_TEMPLATE/` and `.github/PULL_REQUEST_TEMPLATE.md`.
 
 ### Changed
 
 - The build requires `setuptools>=77.0.3` (PEP 639 license metadata) and builds
   against `numpy>=2.0`; the built extension still runs on numpy 1.24 and newer.
+- Repository moved from `gitlab.eawag.ch` to `github.com/eawag-uchem-msf/pyenvipat`:
+  CI, issue/PR templates and all documentation references now point at GitHub;
+  Renovate runs via the GitHub App instead of a self-hosted CI job.
+
+### Removed
+
+- The `Private :: Do Not Upload` classifier, now that PyPI publishing is wired
+  up (uploads still only happen from a `v*` tag, gated by a required reviewer).
 
 ### Fixed
 

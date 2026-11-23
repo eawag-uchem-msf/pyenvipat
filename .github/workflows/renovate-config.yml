@@ -1,0 +1,18 @@
+# renovate.json must pass the validator of the Renovate version actually running it
+# (the Renovate GitHub App). Locally: nox -s renovate_check (needs Node.js).
+
+name: Renovate config
+
+on:
+  pull_request:
+    paths: [renovate.json]
+  push:
+    branches: [main]
+    paths: [renovate.json]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx --yes --package renovate@44 -- renovate-config-validator --strict
