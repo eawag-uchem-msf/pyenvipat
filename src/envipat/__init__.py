@@ -37,7 +37,7 @@ from .vdetect import vdetect
 
 # The only place the version is defined: pyproject.toml reads it from here, and the docs
 # show it. Every MR must raise it (CI job `version-bump`, `nox -s version_bump`).
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 
 __all__ = [
     "__version__",
