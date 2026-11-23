@@ -6,6 +6,8 @@
 # Docs (#28) are built by `docs` and published to GitLab Pages by `pages` on main.
 # Releases (#26): a protected tag vX.Y.Z runs the whole pipeline plus `release-check`
 # and `release`, which keeps the sdist and wheels as artifacts (no upload; PyPI is #31).
+# Renovate (#33, renovate.json) runs from a weekly pipeline schedule with RENOVATE=true;
+# that pipeline runs only the `renovate` job. Setup: CONTRIBUTING.md.
 
 stages: [quality, test, build, deploy]
 
@@ -28,7 +30,12 @@ variables:
   UV_CACHE_DIR: $CI_PROJECT_DIR/.cache/uv
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
+# Every job except `renovate` skips the Renovate schedule (RENOVATE=true).
 .nox:
+  rules:
+    - if: $RENOVATE == "true"
+      when: never
+    - when: on_success
   cache:
     key:
       files: [pyproject.toml]
@@ -56,6 +63,9 @@ version-bump:
   extends: .nox
   stage: quality
   rules:
+    # Renovate MRs only touch tooling and CI images, never the package.
+    - if: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME =~ /^renovate\//
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - git fetch --depth=1 origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
@@ -84,6 +94,18 @@ release-check:
         exit 1
       fi
     - nox -s release_check -- "$CI_COMMIT_TAG"
+
+# renovate.json must pass the validator of the Renovate version that runs it. Locally:
+# nox -s renovate_check (needs Node.js).
+renovate-config:
+  stage: quality
+  image: ghcr.io/renovatebot/renovate:44
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: [renovate.json]
+  cache: []
+  script:
+    - renovate-config-validator --strict
 
 # Our own C files (iso_core.c, enviPat_py.c) with -Wall -Wextra -Werror; the vendored
 # files' warnings are triaged in setup.py.
@@ -135,6 +157,10 @@ build:
 wheels:linux:
   stage: build
   image: docker:29
+  rules:
+    - if: $RENOVATE == "true"
+      when: never
+    - when: on_success
   services:
     - docker:29-dind
   variables:
@@ -173,6 +199,8 @@ pages:
   image: alpine:3.22
   needs: [docs]
   rules:
+    - if: $RENOVATE == "true"
+      when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   cache: []
   script:
@@ -199,3 +227,27 @@ release:
     name: pyEnvipat-$CI_COMMIT_TAG
     expire_in: never
     paths: [release/]
+
+# Opens and rebases the dependency MRs and the Dependency Dashboard issue. Needs the
+# masked CI variables RENOVATE_TOKEN (project access token: api, write_repository,
+# Developer) and GITHUB_COM_TOKEN (read-only github.com token for the pre-commit hook
+# lookups and release notes). The image tag is updated by Renovate itself.
+renovate:
+  stage: quality
+  image: ghcr.io/renovatebot/renovate:44
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $RENOVATE == "true"
+  interruptible: false
+  variables:
+    RENOVATE_PLATFORM: gitlab
+    RENOVATE_ENDPOINT: $CI_API_V4_URL
+    RENOVATE_REPOSITORIES: $CI_PROJECT_PATH
+    RENOVATE_ONBOARDING: "false"
+    RENOVATE_REQUIRE_CONFIG: required
+    RENOVATE_BASE_DIR: $CI_PROJECT_DIR/.cache/renovate
+    LOG_LEVEL: info
+  cache:
+    key: renovate
+    paths: [.cache/renovate/]
+  script:
+    - renovate

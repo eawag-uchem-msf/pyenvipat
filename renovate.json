@@ -1,0 +1,62 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Pinning policy: see CONTRIBUTING.md, section 'Dependencies and pinning'.",
+  "extends": ["config:recommended", "schedule:weekly"],
+  "timezone": "Europe/Zurich",
+  "semanticCommits": "enabled",
+  "dependencyDashboard": { "enabled": true },
+  "automerge": false,
+  "enabledManagers": ["pep621", "pre-commit", "gitlabci", "custom.regex"],
+  "pre-commit": {
+    "enabled": true
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Exact tool pins installed by pip in .gitlab-ci.yml scripts, e.g. cibuildwheel==4.3.5",
+      "managerFilePatterns": ["/^\\.gitlab-ci\\.yml$/"],
+      "matchStrings": ["pip install (?<depName>[A-Za-z0-9_.-]+)==(?<currentValue>[^\\s]+)"],
+      "datasourceTemplate": "pypi"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Lower bounds (runtime, build-system, extras, mypy hook deps) are raised by hand, only when the code needs it",
+      "matchManagers": ["pep621"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["pre-commit"],
+      "matchDatasources": ["pypi"],
+      "enabled": false
+    },
+    {
+      "description": "Exactly pinned dev tools in the dev extra",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["project.optional-dependencies"],
+      "matchPackageNames": ["ruff", "mypy"],
+      "enabled": true
+    },
+    {
+      "description": "Everything else: one MR for all minor and patch updates",
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "minor and patch updates"
+    },
+    {
+      "description": "A new Python for the CI default image is its own MR",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["python"],
+      "groupName": "python image"
+    },
+    {
+      "description": "ruff in the dev extra and in pre-commit must move together",
+      "matchPackageNames": ["ruff", "astral-sh/ruff-pre-commit"],
+      "groupName": "ruff"
+    },
+    {
+      "description": "mypy in the dev extra and in pre-commit must move together",
+      "matchPackageNames": ["mypy", "pre-commit/mirrors-mypy"],
+      "groupName": "mypy"
+    }
+  ]
+}

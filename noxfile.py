@@ -10,6 +10,7 @@
     nox -s version_bump       # version must be higher than on origin/main (CI: every MR)
     nox -s release_check -- v1.2.3  # tag must equal v + __version__ (CI: tag pipelines)
     nox -s audit              # pip-audit the installed runtime dependencies
+    nox -s renovate_check     # renovate.json against CI's Renovate version (needs npx)
 
 `tests` builds a wheel and installs it non-editably, so the suite runs against
 the installed package (compiled extension, package data), not the source tree.
@@ -253,6 +254,25 @@ def audit(session: nox.Session) -> None:
         "pip-audit", "--requirement", str(requirements), "--no-deps", "--disable-pip",
         "--progress-spinner", "off", *session.posargs,
     )  # fmt: skip
+
+
+@nox.session(python=False)
+def renovate_check(session: nox.Session) -> None:
+    """Validate renovate.json with the Renovate version CI runs (needs Node.js/npx)."""
+    ci = (ROOT / ".gitlab-ci.yml").read_text()
+    match = re.search(r"ghcr\.io/renovatebot/renovate:(\S+)", ci)
+    if match is None:
+        session.error("no ghcr.io/renovatebot/renovate image in .gitlab-ci.yml")
+    session.run(
+        "npx",
+        "--yes",
+        "--package",
+        f"renovate@{match.group(1)}",
+        "--",
+        "renovate-config-validator",
+        "--strict",
+        external=True,
+    )
 
 
 def _check_sdist(sdist: Path) -> None:

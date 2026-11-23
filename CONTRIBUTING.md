@@ -77,6 +77,8 @@ name the issue in the MR (`Closes #<n>`).
    it from there) and `version` in `CITATION.cff`. The CI job `version-bump`
    (`nox -s version_bump -- <target-ref>`) fails if the version was not raised,
    and `tests/python/test_version.py` fails if `CITATION.cff` disagrees.
+   Renovate MRs (branches `renovate/*`) are exempt: they only change tooling
+   and CI images, never the package.
 5. Describe user-facing changes in `CHANGELOG.md` under `[Unreleased]`, and add a
    `Changelog: added|changed|fixed|removed|deprecated|security` trailer to the
    commits that make them.
@@ -115,6 +117,42 @@ job fails for an unprotected tag.
 
 Nothing is uploaded to PyPI: the `Private :: Do Not Upload` classifier makes
 PyPI reject uploads until publishing is set up after the move to GitHub (#31).
+
+## Dependencies and pinning
+
+pyEnvipat is a library, so its requirements must not block the environments it
+is installed into. Which dependencies are pinned, and how:
+
+| What | Where | Policy | Updated by |
+|------|-------|--------|------------|
+| Runtime dependencies | `[project.dependencies]` | lower bound only, no upper cap | hand, only when the code needs a newer version |
+| Build requirements | `[build-system].requires` | lower bound only | hand |
+| ruff, mypy | `dev` extra **and** `.pre-commit-config.yaml` | exact pin, same version in both files | Renovate, one MR per tool |
+| Other test/dev/docs extras | `[project.optional-dependencies]` | lower bound or unpinned | hand |
+| pre-commit hooks | `.pre-commit-config.yaml` (`rev:`) | exact tag | Renovate |
+| CI images | `.gitlab-ci.yml` (`image:`) | major or minor tag (`python:3.12`, `alpine:3.22`, `docker:29`) | Renovate |
+| CI tools | `.gitlab-ci.yml` (`pip install x==y`) | exact pin | Renovate |
+
+The test matrix (`python:$PYTHON_VERSION`) and the Python versions in
+`noxfile.py` and `[tool.cibuildwheel]` change only by hand.
+
+[Renovate](https://docs.renovatebot.com/) reads `renovate.json`. Once a week it
+opens MRs: one each for ruff and for mypy, one for a new Python in the CI default
+image, and one for all other minor and patch updates. Major updates get their own MRs.
+Nothing is merged automatically. The Dependency Dashboard issue lists pending and
+rejected updates. Check a change to `renovate.json` with `nox -s renovate_check`
+(needs Node.js); CI runs the same validator in the `renovate-config` job.
+
+Renovate runs as the `renovate` CI job. Maintainers set it up once:
+
+1. Project access token (Settings > Access tokens): role Developer, scopes `api`
+   and `write_repository`. Store it as the masked, protected CI/CD variable
+   `RENOVATE_TOKEN`.
+2. A github.com personal access token without any scopes (pre-commit hooks are looked up
+   as GitHub tags, and release notes come from GitHub). Store it as the masked,
+   protected CI/CD variable `GITHUB_COM_TOKEN`.
+3. Pipeline schedule (Build > Pipeline schedules) on `main`, weekly, with the
+   variable `RENOVATE` = `true`. That pipeline runs only the `renovate` job.
 
 ## Licensing
 
