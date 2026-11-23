@@ -3,7 +3,7 @@
 pyEnvipat is not on PyPI yet. Install it from a source checkout:
 
 ```bash
-git clone git@gitlab.eawag.ch:uchem/msf-server/pyenvipat.git
+git clone https://github.com/eawag-uchem-msf/pyenvipat.git
 cd pyenvipat
 pip install .
 ```

@@ -1,0 +1,88 @@
+# Release pipeline for a v* tag: build sdist + manylinux/musllinux wheels, publish
+# them as a GitHub Release with a SHA256SUMS file, then upload to PyPI via trusted
+# publishing (pypa/gh-action-pypi-publish), gated by the `pypi` environment's
+# required reviewer. Who may create a v* tag at all is enforced by the repo's tag
+# ruleset, not by this workflow.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install nox uv
+      - run: nox -s release_check -- "${{ github.ref_name }}"
+
+  build:
+    needs: [release-check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install nox uv
+      - run: nox -s build
+      - uses: actions/upload-artifact@v4
+        with: { name: dist, path: dist/ }
+
+  wheels-linux:
+    needs: [release-check]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cibw-skip: ["*-musllinux_*", "*-manylinux_*"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pypa/cibuildwheel@v4.3.5
+        env:
+          CIBW_BUILD_VERBOSITY: "1"
+          CIBW_SKIP: ${{ matrix.cibw-skip }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-${{ strategy.job-index }}
+          path: wheelhouse/*.whl
+
+  # Collects the sdist and the manylinux/musllinux wheels with a SHA256SUMS file as
+  # a GitHub Release's assets, kept indefinitely. Windows/macOS wheels join here
+  # once #22 / #23 land.
+  github-release:
+    needs: [build, wheels-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: |
+            dist
+            wheels-linux-*
+          merge-multiple: true
+          path: release
+      - working-directory: release
+        run: sha256sum * | tee SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: pyEnvipat ${{ github.ref_name }}
+          files: release/*
+          generate_release_notes: true
+
+  publish:
+    needs: [github-release]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist, path: dist }
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true

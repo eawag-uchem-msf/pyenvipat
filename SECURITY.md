@@ -9,7 +9,8 @@ Only the latest released version of pyEnvipat receives security fixes.
 Please do **not** report security issues in public issues or MRs.
 
 Report privately by email to the maintainer, johannesboog@yahoo.de, or by
-opening a GitLab issue marked **confidential**. Include the affected version,
+opening a [private security advisory](https://github.com/eawag-uchem-msf/pyenvipat/security/advisories/new)
+on GitHub. Include the affected version,
 a description, and a minimal reproduction (for example, an input formula that
 triggers a crash). pyEnvipat contains a compiled C extension that parses
 user-supplied formula strings, so memory-safety reports (out-of-bounds access,

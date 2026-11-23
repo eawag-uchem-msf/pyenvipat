@@ -18,7 +18,7 @@ pre-commit install
 pytest
 pytest tests/python/test_pipeline.py -k isowrap
 
-# What CI runs (.gitlab-ci.yml calls these nox sessions)
+# What CI runs (.github/workflows/ calls these nox sessions)
 nox -s lint format typecheck    # ruff check, ruff format (--check in CI), mypy
 nox -s tests                    # builds + installs a wheel, pytest + coverage on 3.10-3.13
 nox -s cwarnings                # own C files (iso_core.c, enviPat_py.c) with -Wall -Wextra -Werror
@@ -28,7 +28,7 @@ nox -s version_bump             # __version__ must be higher than on origin/main
 nox -s audit                    # pip-audit the resolved runtime dependencies (not dev tooling)
 nox -s release_check -- vX.Y.Z  # tag == v + __version__ == CITATION.cff version (CI: v* tag pipelines)
 nox -s renovate_check           # validate renovate.json (needs npx); pinning policy in CONTRIBUTING.md
-nox -s docs                     # Sphinx site (-W, nitpicky), executes docs/tutorial.ipynb; CI `pages` publishes it from main
+nox -s docs                     # Sphinx site (-W, nitpicky), executes docs/tutorial.ipynb; not yet published by CI
 
 # Linux wheels as CI builds them (needs docker; config in [tool.cibuildwheel])
 cibuildwheel --platform linux
@@ -77,4 +77,4 @@ vdetect()          ← centroid / intensoid / valley detection
 - Keep the vendored C algorithm files unmodified so floating-point behaviour matches the original; changes belong in `iso_core.c`/`enviPat_py.c`.
 - Commit messages follow Conventional Commits.
 - Every MR bumps `__version__` in `src/envipat/__init__.py`, the single source of the version (pyproject reads it via `[tool.setuptools.dynamic]`, the docs via `envipat.__version__`). CI job `version-bump` (`nox -s version_bump`) enforces it on MR pipelines. `CITATION.cff` repeats the version (a test checks they match). User-facing changes go into `CHANGELOG.md` under `[Unreleased]`.
-- Releases: a protected `vX.Y.Z` tag runs `release-check` and `release` (sdist + cibuildwheel wheels as artifacts, no upload). PyPI publishing comes with the move to GitHub (#31); until then the `Private :: Do Not Upload` classifier blocks uploads.
+- Releases: a protected `vX.Y.Z` tag runs `release-check`, builds the sdist and cibuildwheel wheels (GitHub Release assets), and publishes to PyPI via trusted publishing, gated by the `pypi` environment's required reviewer.

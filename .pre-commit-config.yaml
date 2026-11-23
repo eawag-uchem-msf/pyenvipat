@@ -1,4 +1,4 @@
-# Mirrors the CI quality stage (.gitlab-ci.yml -> noxfile.py). The ruff/mypy revs
+# Mirrors the CI quality stage (.github/workflows/ -> noxfile.py). The ruff/mypy revs
 # match the `dev` extra in pyproject.toml; Renovate updates both together
 # (pinning policy: CONTRIBUTING.md, "Dependencies and pinning").
 #   pre-commit install        # once per clone

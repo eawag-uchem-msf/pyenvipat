@@ -6,15 +6,15 @@
   "semanticCommits": "enabled",
   "dependencyDashboard": { "enabled": true },
   "automerge": false,
-  "enabledManagers": ["pep621", "pre-commit", "gitlabci", "custom.regex"],
+  "enabledManagers": ["pep621", "pre-commit", "github-actions", "custom.regex"],
   "pre-commit": {
     "enabled": true
   },
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Exact tool pins installed by pip in .gitlab-ci.yml scripts, e.g. cibuildwheel==4.3.5",
-      "managerFilePatterns": ["/^\\.gitlab-ci\\.yml$/"],
+      "description": "Exact tool pins installed by pip in .github/workflows/ scripts, e.g. cibuildwheel==4.3.5",
+      "managerFilePatterns": ["/^\\.github/workflows/.*\\.ya?ml$/"],
       "matchStrings": ["pip install (?<depName>[A-Za-z0-9_.-]+)==(?<currentValue>[^\\s]+)"],
       "datasourceTemplate": "pypi"
     }

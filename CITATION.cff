@@ -4,13 +4,13 @@ message: >-
   (preferred citation) and, where relevant, this Python port.
 title: pyEnvipat
 type: software
-version: 1.0.0
+version: 1.0.1
 license: GPL-2.0-only
 abstract: >-
   Python port of the R package enviPat: isotope fine structure patterns,
   theoretical mass spectrometry envelopes, centroid detection and instrument
   resolution interpolation.
-repository-code: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat
+repository-code: https://github.com/eawag-uchem-msf/pyenvipat
 authors:
   - family-names: Loos
     given-names: Martin

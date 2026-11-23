@@ -1,4 +1,4 @@
-"""Task runner. CI (.gitlab-ci.yml) calls these sessions, so local and CI runs match.
+"""Task runner. CI (.github/workflows/) calls these sessions, so local and CI runs match.
 
     nox                       # lint, format, typecheck, tests on every Python
     nox -s tests-3.12         # tests on one Python version
@@ -259,10 +259,11 @@ def audit(session: nox.Session) -> None:
 @nox.session(python=False)
 def renovate_check(session: nox.Session) -> None:
     """Validate renovate.json with the Renovate version CI runs (needs Node.js/npx)."""
-    ci = (ROOT / ".gitlab-ci.yml").read_text()
-    match = re.search(r"ghcr\.io/renovatebot/renovate:(\S+)", ci)
+    workflow_file = ROOT / ".github" / "workflows" / "renovate-config.yml"
+    workflow = workflow_file.read_text()
+    match = re.search(r"ghcr\.io/renovatebot/renovate:(\S+)", workflow)
     if match is None:
-        session.error("no ghcr.io/renovatebot/renovate image in .gitlab-ci.yml")
+        session.error(f"no ghcr.io/renovatebot/renovate image in {workflow_file}")
     session.run(
         "npx",
         "--yes",

@@ -24,7 +24,7 @@ verified against reference outputs frozen from enviPat v2.8; see
 Not yet published to PyPI -- install from a source checkout:
 
 ```bash
-git clone git@gitlab.eawag.ch:uchem/msf-server/pyenvipat.git
+git clone https://github.com/eawag-uchem-msf/pyenvipat.git
 cd pyenvipat
 pip install .
 ```
@@ -135,8 +135,7 @@ result = ep.isowrap(
 
 The documentation site (installation, quickstart, a step-by-step tutorial
 notebook and the API reference generated from the docstrings) is built with
-Sphinx from `docs/` and published to the project's GitLab Pages from `main`
-(GitLab: *Deploy > Pages*). Build it locally with:
+Sphinx from `docs/`. It is not yet published anywhere; build it locally with:
 
 ```bash
 nox -s docs        # or: pip install -e ".[docs]" && sphinx-build docs docs/_build/html
@@ -178,8 +177,8 @@ popup is the fastest way to explore.
 ## Development
 
 Lint, type checks and tests are configured in `pyproject.toml` and run through
-[nox](https://nox.thea.codes/) sessions (`noxfile.py`); GitLab CI
-(`.gitlab-ci.yml`) calls the same sessions, and the pre-commit hooks
+[nox](https://nox.thea.codes/) sessions (`noxfile.py`); CI
+(`.github/workflows/`) calls the same sessions, and the pre-commit hooks
 (`.pre-commit-config.yaml`) mirror the lint and type checks.
 
 ```bash
