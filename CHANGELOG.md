@@ -18,11 +18,18 @@ All notable changes to pyEnvipat are listed here. The format follows
   URLs. The `Private :: Do Not Upload` classifier blocks uploads until
   publishing is set up.
 - This changelog.
+- Renovate opens weekly MRs for dev tools, pre-commit hooks and CI images;
+  the pinning policy is documented in `CONTRIBUTING.md`.
 
 ### Changed
 
 - The build requires `setuptools>=77.0.3` (PEP 639 license metadata) and builds
   against `numpy>=2.0`; the built extension still runs on numpy 1.24 and newer.
+
+### Fixed
+
+- `isopattern` warns about a non-default `emass` with an explicit `UserWarning`
+  that names the given and the default value (it read "electrone" before).
 
 ## [0.2.2] - 2026-11-17
 
