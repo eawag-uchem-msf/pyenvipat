@@ -99,13 +99,16 @@ jobs:
           retention-days: 7
 
   # Full test suite against an AddressSanitizer + UndefinedBehaviorSanitizer build of
-  # the C extension (GCC). Any finding aborts the run.
+  # the C extension (GCC). Any finding aborts the run. Pinned to the same python:3.12
+  # image GitLab CI used (not ubuntu-latest, like the other jobs): the golden-fixture
+  # comparison in tests/test_core.py is exact equality, and a newer GCC's codegen for
+  # the ASan/UBSan build (only that build, not the plain one) diverges by ~1 ULP from
+  # the fixtures on ubuntu-latest's default toolchain.
   sanitize:
     runs-on: ubuntu-latest
+    container: python:3.12
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
       - run: pip install nox uv
       - run: nox -s sanitize
 
