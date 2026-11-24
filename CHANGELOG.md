@@ -13,6 +13,10 @@ All notable changes to pyEnvipat are listed here. The format follows
   (`renovate-config.yml`), which the move to GitHub Actions had left
   unmanaged; the custom manager for `pip install x==y` pins in workflows,
   which no longer matched anything, is removed.
+- CI no longer fails on `main` for lack of a macOS runner: the `tests` job
+  runs macOS only on Python 3.10 and 3.13 (the `wheels` workflow still tests
+  every Python version on macOS), and runs on `main` and on tags are no longer
+  cancelled by a later push.
 
 ## [1.0.5] - 2026-11-24
 

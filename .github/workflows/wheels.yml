@@ -11,9 +11,11 @@ on:
     tags: ["v*"]
   pull_request:
 
+# Superseded PR runs are cancelled; runs on main and on tags are not (the README
+# badge shows the latest run on main, and a cancelled run does not show as passing).
 concurrency:
   group: wheels-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   wheels:
