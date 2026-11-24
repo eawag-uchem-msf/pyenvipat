@@ -28,7 +28,7 @@ nox -s version_bump             # __version__ must be higher than on origin/main
 nox -s audit                    # pip-audit the resolved runtime dependencies (not dev tooling)
 nox -s release_check -- vX.Y.Z  # tag == v + __version__ == CITATION.cff version (CI: v* tag pipelines)
 nox -s renovate_check           # validate renovate.json (needs npx); pinning policy in CONTRIBUTING.md
-nox -s docs                     # Sphinx site (-W, nitpicky), executes docs/tutorial.ipynb; not yet published by CI
+nox -s docs                     # Sphinx site (-W, nitpicky), executes docs/tutorial.ipynb; CI docs.yml builds it on every PR and deploys it to GitHub Pages from main
 
 # Wheels as CI builds them (config in [tool.cibuildwheel]; Linux needs docker).
 # CI (wheels.yml) builds Linux, Windows (win_amd64) and macOS (x86_64, arm64) wheels;

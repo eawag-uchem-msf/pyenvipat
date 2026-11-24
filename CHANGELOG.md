@@ -29,6 +29,10 @@ All notable changes to pyEnvipat are listed here. The format follows
   reviewer). Run manually, the `release` workflow is a dry run that uploads
   the same sdist and wheels to TestPyPI instead.
 - `.github/ISSUE_TEMPLATE/` and `.github/PULL_REQUEST_TEMPLATE.md`.
+- Documentation site on GitHub Pages
+  (<https://eawag-uchem-msf.github.io/pyenvipat/>): the `docs` workflow builds
+  it on every PR and deploys it from `main`; `Documentation` added to the
+  project URLs.
 - Windows and macOS support (#22, #23): the test suite runs on Windows (MSVC)
   and macOS (Intel and Apple Silicon) for Python 3.10-3.13, and binary wheels
   are built for `win_amd64`, macOS `x86_64` and macOS `arm64`; releases publish
