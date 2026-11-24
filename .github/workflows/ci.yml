@@ -10,9 +10,12 @@ on:
     branches: [main]
   pull_request:
 
+# Superseded PR runs are cancelled; runs on main are not, so every merge gets a
+# complete result (the README badge shows the latest run on main, and a
+# cancelled run does not show as passing).
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
@@ -75,6 +78,10 @@ jobs:
 
   # Linux, Windows (MSVC, #22) and macOS on Intel and Apple Silicon (Apple clang,
   # #23). The golden fixtures are compared exactly on every platform.
+  # macOS runs only the oldest and newest Python: hosted macOS runners (Apple
+  # Silicon above all) are scarce, and queued jobs that are never picked up fail
+  # the whole run ("job was not acquired by Runner"). wheels.yml still runs the
+  # full suite against the macOS wheels for every Python version.
   tests:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -82,6 +89,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-15-intel, macos-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
+        exclude:
+          - { os: macos-15-intel, python-version: "3.11" }
+          - { os: macos-15-intel, python-version: "3.12" }
+          - { os: macos-latest, python-version: "3.11" }
+          - { os: macos-latest, python-version: "3.12" }
     defaults:
       run:
         # Explicit bash (Git Bash on Windows) also sets -o pipefail, so a pytest
