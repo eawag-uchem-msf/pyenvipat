@@ -31,8 +31,8 @@ All notable changes to pyEnvipat are listed here. The format follows
   are built for `win_amd64`, macOS `x86_64` and macOS `arm64`; releases publish
   them next to the Linux wheels. Building from source on Windows uses
   `clang-cl` (the vendored C sources use variable-length arrays, which MSVC's
-  `cl.exe` does not support); on arm64, golden-fixture abundances are compared
-  with a 4-ULP relative tolerance instead of exactly.
+  `cl.exe` does not support); on Windows and arm64, golden-fixture abundances
+  are compared with a 4-ULP relative tolerance instead of exactly.
 
 ### Changed
 

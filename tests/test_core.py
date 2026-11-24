@@ -8,12 +8,14 @@ src/envipat/_core/, unmodified except for one disclosed preferences.h edit
 here is an exact equality check (np.testing.assert_array_equal, no
 tolerance), not an allclose().
 
-One exception, on arm64 only (macOS Apple Silicon, issue #23): isotope
-abundances from iso_pattern/iso_pattern_4 may differ from the x86_64 fixtures
-by a few ULPs (observed: relative difference <= 2.6e-16 in 6 of 209 cases;
-masses and compounds stay exact). The platform's libm rounds exp/log/pow
-differently; FMA contraction is already off (-ffp-contract=off in setup.py).
-There the abundances are compared with ARM64_ABUNDANCE_RTOL instead.
+One exception, on Windows (issue #22) and arm64 (macOS Apple Silicon, issue
+#23): isotope abundances from iso_pattern/iso_pattern_4 differ from the
+fixtures by a few ULPs there (observed: relative difference <= 3.9e-16 in 6 of
+209 cases, case_003 and case_006..case_010; masses and compounds stay exact).
+Those platforms' math libraries (UCRT, Apple's arm64 libm) round exp/log/pow
+differently from glibc and Apple's x86_64 libm, which reproduce the fixtures
+exactly; FMA contraction is off everywhere (-ffp-contract=off in setup.py).
+There the abundances are compared with ABUNDANCE_RTOL instead.
 
 Five of the iso_pattern/iso_pattern_4 cases (case_006..case_010, formula
 C10H15Cl2) call the C core with the *full* isotopes table rather than a
@@ -38,8 +40,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 GOLDEN_DIR = REPO_ROOT / "tests" / "golden" / "c_direct"
 
 # See the module docstring: 4 ULPs relative, no absolute slack.
-IS_ARM64 = platform.machine().lower() in {"arm64", "aarch64"}
-ARM64_ABUNDANCE_RTOL = 4 * np.finfo(np.float64).eps
+ABUNDANCE_ULP_PLATFORM = platform.system() == "Windows" or platform.machine().lower() in {
+    "arm64",
+    "aarch64",
+}
+ABUNDANCE_RTOL = 4 * np.finfo(np.float64).eps
 
 
 # --------------------------------------------------------------------- #
@@ -257,9 +262,9 @@ def test_pattern_matches_golden(case_id, reduced_isotopes, full_isotopes):
     ).T
 
     np.testing.assert_array_equal(result["mass"], expected_mass)
-    if IS_ARM64:
+    if ABUNDANCE_ULP_PLATFORM:
         np.testing.assert_allclose(
-            result["abundance"], expected_abundance, rtol=ARM64_ABUNDANCE_RTOL, atol=0
+            result["abundance"], expected_abundance, rtol=ABUNDANCE_RTOL, atol=0
         )
     else:
         np.testing.assert_array_equal(result["abundance"], expected_abundance)
