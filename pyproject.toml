@@ -135,9 +135,10 @@ xfail_strict = true
 filterwarnings = ["error:The 'float_precision' argument is deprecated"]
 
 [tool.cibuildwheel]
-# Binary wheels for CPython 3.10-3.13. Linux (#21): manylinux_2_28 + musllinux_1_2,
-# x86_64 only (aarch64 would need emulation or arm runners). Windows (#22) and
-# macOS (#23) wheels need CI runners for those platforms.
+# Binary wheels for CPython 3.10-3.13, each built natively on its CI runner
+# (.github/workflows/wheels.yml): Linux (#21) manylinux_2_28 + musllinux_1_2 x86_64
+# (aarch64 would need emulation or arm runners), Windows (#22) win_amd64, macOS (#23)
+# x86_64 and arm64 (separate wheels from an Intel and an Apple Silicon runner).
 build = "cp310-* cp311-* cp312-* cp313-*"
 archs = ["native"]
 build-frontend = "build"

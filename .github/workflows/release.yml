@@ -1,4 +1,4 @@
-# Release pipeline for a v* tag: build sdist + manylinux/musllinux wheels, publish
+# Release pipeline for a v* tag: build sdist + Linux/Windows/macOS wheels, publish
 # them as a GitHub Release with a SHA256SUMS file, then upload to PyPI via trusted
 # publishing (pypa/gh-action-pypi-publish), gated by the `pypi` environment's
 # required reviewer. Who may create a v* tag at all is enforced by the repo's tag
@@ -29,16 +29,23 @@ jobs:
         with: { python-version: "3.12" }
       - run: pip install nox uv
       - run: nox -s build
+      # Only the sdist: the session's plain linux_x86_64 wheel is not distributable
+      # (PyPI rejects it); the cibuildwheel wheels replace it.
       - uses: actions/upload-artifact@v4
-        with: { name: dist, path: dist/ }
+        with: { name: sdist, path: dist/*.tar.gz }
 
-  wheels-linux:
+  wheels:
     needs: [release-check]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        cibw-skip: ["*-musllinux_*", "*-manylinux_*"]
+        include:
+          - { name: linux-manylinux, os: ubuntu-latest, cibw-skip: "*-musllinux_*" }
+          - { name: linux-musllinux, os: ubuntu-latest, cibw-skip: "*-manylinux_*" }
+          - { name: windows-amd64, os: windows-latest }
+          - { name: macos-x86_64, os: macos-15-intel }
+          - { name: macos-arm64, os: macos-latest }
     steps:
       - uses: actions/checkout@v4
       - uses: pypa/cibuildwheel@v4.3.5
@@ -47,23 +54,20 @@ jobs:
           CIBW_SKIP: ${{ matrix.cibw-skip }}
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ strategy.job-index }}
+          name: wheels-${{ matrix.name }}
           path: wheelhouse/*.whl
 
-  # Collects the sdist and the manylinux/musllinux wheels with a SHA256SUMS file as
-  # a GitHub Release's assets, kept indefinitely. Windows/macOS wheels join here
-  # once #22 / #23 land.
+  # Collects the sdist and all wheels with a SHA256SUMS file as a GitHub Release's
+  # assets, kept indefinitely.
   github-release:
-    needs: [build, wheels-linux]
+    needs: [build, wheels]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: |
-            dist
-            wheels-linux-*
+          pattern: "{sdist,wheels-*}"
           merge-multiple: true
           path: release
       - working-directory: release
@@ -81,8 +85,12 @@ jobs:
     permissions:
       id-token: write
     steps:
+      # The same sdist + wheels as the GitHub Release (no SHA256SUMS).
       - uses: actions/download-artifact@v4
-        with: { name: dist, path: dist }
+        with:
+          pattern: "{sdist,wheels-*}"
+          merge-multiple: true
+          path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           attestations: true

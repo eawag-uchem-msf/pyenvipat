@@ -30,7 +30,9 @@ nox -s release_check -- vX.Y.Z  # tag == v + __version__ == CITATION.cff version
 nox -s renovate_check           # validate renovate.json (needs npx); pinning policy in CONTRIBUTING.md
 nox -s docs                     # Sphinx site (-W, nitpicky), executes docs/tutorial.ipynb; not yet published by CI
 
-# Linux wheels as CI builds them (needs docker; config in [tool.cibuildwheel])
+# Wheels as CI builds them (config in [tool.cibuildwheel]; Linux needs docker).
+# CI (wheels.yml) builds Linux, Windows (win_amd64) and macOS (x86_64, arm64) wheels;
+# the `tests` job runs on Linux, Windows and macOS.
 cibuildwheel --platform linux
 ```
 
@@ -47,7 +49,7 @@ After changing any `.c`/`.h` file under `src/envipat/_core/`, re-run `pip instal
   - `isopattern.py`, `envelope.py`, `vdetect.py`, `check_several.py`, `isowrap.py` — pipeline functions
   - `resolution.py` — `get_resolution` (port of R's `getR`, fitted with scipy's `make_smoothing_spline`; not bit-compatible with R); `_rseq.py` holds R's `seq` semantics
   - `data.py` + `data/` — lazily loaded `isotopes`, `chemforms`, `adducts`, `resolution_list` (CSV/TXT)
-- `src/envipat/_core/` — C code: `iso_core.c/h` (pure-C core), `enviPat_py.c` (CPython bindings), and the vendored original algorithm files (`combination`, `profile`, `parse`, `element`, `isotope`, `peak`, `data.h`, `preferences.h`). `setup.py` builds them into `envipat._core.enviPat_py`, with flags per compiler (`-O2 -Wall -Wextra` for GCC/Clang, `/O2` for MSVC); the vendored files' remaining warnings are triaged there.
+- `src/envipat/_core/` — C code: `iso_core.c/h` (pure-C core), `enviPat_py.c` (CPython bindings), and the vendored original algorithm files (`combination`, `profile`, `parse`, `element`, `isotope`, `peak`, `data.h`, `preferences.h`). `setup.py` builds them into `envipat._core.enviPat_py`, with flags per compiler (`-O2 -ffp-contract=off -Wall -Wextra` for GCC/Clang, `/O2` for the MSVC toolchain, compiled with clang-cl because the vendored `combination.c` uses VLAs cl.exe rejects); the vendored files' remaining warnings are triaged there.
 - `docs/` — Sphinx site (furo, numpydoc, myst-nb): `api/` pages autodoc one module each; `data.rst` documents the `envipat.data` datasets by hand (they are lazy module attributes autodoc cannot see); `tutorial.ipynb` is committed without outputs and executed on every build. Cross-references must resolve (`nitpicky`), so private names go in double backticks, not `:func:`.
 
 ### Typical workflow

@@ -26,6 +26,13 @@ All notable changes to pyEnvipat are listed here. The format follows
   to PyPI via trusted publishing (gated by the `pypi` environment's required
   reviewer).
 - `.github/ISSUE_TEMPLATE/` and `.github/PULL_REQUEST_TEMPLATE.md`.
+- Windows and macOS support (#22, #23): the test suite runs on Windows (MSVC)
+  and macOS (Intel and Apple Silicon) for Python 3.10-3.13, and binary wheels
+  are built for `win_amd64`, macOS `x86_64` and macOS `arm64`; releases publish
+  them next to the Linux wheels. Building from source on Windows uses
+  `clang-cl` (the vendored C sources use variable-length arrays, which MSVC's
+  `cl.exe` does not support); on Windows and arm64, golden-fixture abundances
+  are compared with a 4-ULP relative tolerance instead of exactly.
 
 ### Changed
 
@@ -42,6 +49,13 @@ All notable changes to pyEnvipat are listed here. The format follows
 
 ### Fixed
 
+- The C extension is compiled with `-ffp-contract=off` on GCC/Clang/clang-cl, so
+  compilers that fuse multiply-adds by default (Apple clang on arm64, GCC on
+  aarch64) produce the same results as the x86_64 reference builds.
+- Release uploads to PyPI now contain the sdist and all cibuildwheel wheels
+  instead of the sdist plus an unpublishable plain `linux_x86_64` wheel.
+- A failing test run in CI no longer passes because its output is piped
+  through `tee`.
 - `isopattern` warns about a non-default `emass` with an explicit `UserWarning`
   that names the given and the default value (it read "electrone" before).
 
