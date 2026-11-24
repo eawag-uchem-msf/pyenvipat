@@ -21,28 +21,32 @@ verified against reference outputs frozen from enviPat v2.8; see
 
 ## Installation
 
-Not yet published to PyPI -- install from a source checkout:
+From [PyPI](https://pypi.org/project/pyEnvipat/):
+
+```bash
+pip install pyEnvipat
+```
+
+Requirements: Python >= 3.10. The runtime dependencies (`pandas`, `numpy`,
+`scipy`) are installed automatically. Binary wheels are published for CPython
+3.10-3.13 on Linux x86_64 (manylinux and musllinux), Windows x86_64 and macOS
+(Intel and Apple Silicon), so no C compiler is needed there. On any other
+platform pip builds the bundled `envipat._core.enviPat_py` extension from the
+sdist, which needs a C compiler (on Windows `clang-cl`, see the
+[installation docs](https://eawag-uchem-msf.github.io/pyenvipat/installation.html)).
+
+For development, install from a source checkout (editable install, so local
+edits take effect without reinstalling, plus test and lint tooling; needs a C
+compiler):
 
 ```bash
 git clone https://github.com/eawag-uchem-msf/pyenvipat.git
 cd pyenvipat
-pip install .
-```
-
-For development (editable install, so local edits take effect without
-reinstalling, plus test and lint tooling):
-
-```bash
 pip install -e ".[dev]"
 pre-commit install
 ```
 
-See [Development](#development) for running checks and tests, and [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a merge request.
-
-Requirements: Python >= 3.10, a C compiler (to build the bundled
-`envipat._core.enviPat_py` extension at install time), and `numpy` at
-build time. Runtime dependencies (`pandas`, `numpy`, `scipy`) are
-installed automatically.
+See [Development](#development) for running checks and tests, and [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
 
 No R installation is required to install, import or use this package --
 the bundled reference data (`envipat.data`) ships as plain CSV/TXT files,
