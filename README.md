@@ -1,5 +1,11 @@
 # pyEnvipat
 
+[![Tests](https://img.shields.io/github/actions/workflow/status/eawag-uchem-msf/pyenvipat/ci.yml?branch=main&label=tests)](https://github.com/eawag-uchem-msf/pyenvipat/actions/workflows/ci.yml?query=branch%3Amain)
+[![Build](https://img.shields.io/github/actions/workflow/status/eawag-uchem-msf/pyenvipat/wheels.yml?branch=main&label=build)](https://github.com/eawag-uchem-msf/pyenvipat/actions/workflows/wheels.yml?query=branch%3Amain)
+[![Docs](https://img.shields.io/github/actions/workflow/status/eawag-uchem-msf/pyenvipat/docs.yml?branch=main&label=docs)](https://eawag-uchem-msf.github.io/pyenvipat/)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Feawag-uchem-msf.github.io%2Fpyenvipat%2Fcoverage-badge.json)](https://github.com/eawag-uchem-msf/pyenvipat/actions/workflows/docs.yml?query=branch%3Amain)
+[![PyPI](https://img.shields.io/pypi/v/pyEnvipat?label=release)](https://pypi.org/project/pyEnvipat/)
+
 Python port of the R package [`enviPat`](https://github.com/blosloos/enviPat)
 (Loos, Gerber et al., EAWAG), licensed GPL-2.0-only, same as upstream --
 calculation of isotope fine structure patterns and theoretical mass
