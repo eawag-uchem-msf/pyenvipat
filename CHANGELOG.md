@@ -29,7 +29,10 @@ All notable changes to pyEnvipat are listed here. The format follows
 - Windows and macOS support (#22, #23): the test suite runs on Windows (MSVC)
   and macOS (Intel and Apple Silicon) for Python 3.10-3.13, and binary wheels
   are built for `win_amd64`, macOS `x86_64` and macOS `arm64`; releases publish
-  them next to the Linux wheels.
+  them next to the Linux wheels. Building from source on Windows uses
+  `clang-cl` (the vendored C sources use variable-length arrays, which MSVC's
+  `cl.exe` does not support); on arm64, golden-fixture abundances are compared
+  with a 4-ULP relative tolerance instead of exactly.
 
 ### Changed
 
@@ -46,7 +49,7 @@ All notable changes to pyEnvipat are listed here. The format follows
 
 ### Fixed
 
-- The C extension is compiled with `-ffp-contract=off` on GCC/Clang, so
+- The C extension is compiled with `-ffp-contract=off` on GCC/Clang/clang-cl, so
   compilers that fuse multiply-adds by default (Apple clang on arm64, GCC on
   aarch64) produce the same results as the x86_64 reference builds.
 - Release uploads to PyPI now contain the sdist and all cibuildwheel wheels

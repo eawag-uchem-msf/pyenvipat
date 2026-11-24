@@ -12,7 +12,9 @@ Requirements:
 
 - Python >= 3.10
 - a C compiler, to build the bundled `envipat._core.enviPat_py` extension at
-  install time
+  install time; on Windows that is `clang-cl` (Visual Studio component "C++
+  Clang tools for Windows", or LLVM), because the vendored C sources use
+  variable-length arrays, which `cl.exe` cannot compile
 - `numpy` at build time (installed automatically by pip's build isolation)
 
 CI builds and tests the package on Linux, Windows (MSVC) and macOS (Intel and
