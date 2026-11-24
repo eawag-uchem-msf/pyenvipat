@@ -24,7 +24,8 @@ All notable changes to pyEnvipat are listed here. The format follows
   check, sanitizer run, build and Linux wheels on every push/PR, plus a
   `release` workflow on `v*` tags that publishes a GitHub Release and uploads
   to PyPI via trusted publishing (gated by the `pypi` environment's required
-  reviewer).
+  reviewer). Run manually, the `release` workflow is a dry run that uploads
+  the same sdist and wheels to TestPyPI instead.
 - `.github/ISSUE_TEMPLATE/` and `.github/PULL_REQUEST_TEMPLATE.md`.
 - Windows and macOS support (#22, #23): the test suite runs on Windows (MSVC)
   and macOS (Intel and Apple Silicon) for Python 3.10-3.13, and binary wheels
