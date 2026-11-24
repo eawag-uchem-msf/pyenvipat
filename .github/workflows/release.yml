@@ -3,15 +3,21 @@
 # publishing (pypa/gh-action-pypi-publish), gated by the `pypi` environment's
 # required reviewer. Who may create a v* tag at all is enforced by the repo's tag
 # ruleset, not by this workflow.
+#
+# Run manually (workflow_dispatch) for a dry run: the same sdist + wheels are
+# uploaded to TestPyPI via the `testpypi` environment instead; no tag check, no
+# GitHub Release, no PyPI upload.
 
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 jobs:
   release-check:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +28,7 @@ jobs:
 
   build:
     needs: [release-check]
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +43,7 @@ jobs:
 
   wheels:
     needs: [release-check]
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -60,6 +68,7 @@ jobs:
   # Collects the sdist and all wheels with a SHA256SUMS file as a GitHub Release's
   # assets, kept indefinitely.
   github-release:
+    if: github.event_name == 'push'
     needs: [build, wheels]
     runs-on: ubuntu-latest
     permissions:
@@ -79,6 +88,7 @@ jobs:
           generate_release_notes: true
 
   publish:
+    if: github.event_name == 'push'
     needs: [github-release]
     runs-on: ubuntu-latest
     environment: pypi
@@ -94,3 +104,24 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           attestations: true
+
+  # Dry run: TestPyPI rejects re-uploading a version, so files already there are
+  # skipped and the run can be repeated for the same version.
+  publish-testpypi:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build, wheels]
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "{sdist,wheels-*}"
+          merge-multiple: true
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          attestations: true
+          skip-existing: true
