@@ -7,6 +7,8 @@ All notable changes to pyEnvipat are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-24
+
 ### Added
 
 - Release process: a pipeline for a protected `vX.Y.Z` tag checks that the tag
@@ -106,7 +108,8 @@ All notable changes to pyEnvipat are listed here. The format follows
   `check_several`, `isowrap` and `get_resolution`, tested against golden
   fixtures frozen from R enviPat v2.8.
 
-[Unreleased]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/compare/a485e1f...main
+[Unreleased]: https://github.com/eawag-uchem-msf/pyenvipat/compare/v1.0.5...HEAD
+[1.0.5]: https://github.com/eawag-uchem-msf/pyenvipat/compare/a485e1f...v1.0.5
 [0.2.2]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/commit/a485e1f
 [0.2.1]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/commit/977d999
 [0.2.0]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/tags/0.2.0
