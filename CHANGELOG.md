@@ -7,6 +7,8 @@ All notable changes to pyEnvipat are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-24
+
 ### Added
 
 - Release process: a pipeline for a protected `vX.Y.Z` tag checks that the tag
@@ -27,6 +29,10 @@ All notable changes to pyEnvipat are listed here. The format follows
   reviewer). Run manually, the `release` workflow is a dry run that uploads
   the same sdist and wheels to TestPyPI instead.
 - `.github/ISSUE_TEMPLATE/` and `.github/PULL_REQUEST_TEMPLATE.md`.
+- Documentation site on GitHub Pages
+  (<https://eawag-uchem-msf.github.io/pyenvipat/>): the `docs` workflow builds
+  it on every PR and deploys it from `main`; `Documentation` added to the
+  project URLs.
 - Windows and macOS support (#22, #23): the test suite runs on Windows (MSVC)
   and macOS (Intel and Apple Silicon) for Python 3.10-3.13, and binary wheels
   are built for `win_amd64`, macOS `x86_64` and macOS `arm64`; releases publish
@@ -106,7 +112,8 @@ All notable changes to pyEnvipat are listed here. The format follows
   `check_several`, `isowrap` and `get_resolution`, tested against golden
   fixtures frozen from R enviPat v2.8.
 
-[Unreleased]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/compare/a485e1f...main
+[Unreleased]: https://github.com/eawag-uchem-msf/pyenvipat/compare/v1.0.5...HEAD
+[1.0.5]: https://github.com/eawag-uchem-msf/pyenvipat/compare/a485e1f...v1.0.5
 [0.2.2]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/commit/a485e1f
 [0.2.1]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/commit/977d999
 [0.2.0]: https://gitlab.eawag.ch/uchem/msf-server/pyenvipat/-/tags/0.2.0

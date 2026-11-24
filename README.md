@@ -135,7 +135,8 @@ result = ep.isowrap(
 
 The documentation site (installation, quickstart, a step-by-step tutorial
 notebook and the API reference generated from the docstrings) is built with
-Sphinx from `docs/`. It is not yet published anywhere; build it locally with:
+Sphinx from `docs/` and published from `main` at
+<https://eawag-uchem-msf.github.io/pyenvipat/>. Build it locally with:
 
 ```bash
 nox -s docs        # or: pip install -e ".[docs]" && sphinx-build docs docs/_build/html

@@ -85,6 +85,7 @@ docs = [
 # Well-known labels (packaging.python.org well-known-project-urls).
 [project.urls]
 Homepage = "https://www.envipat.eawag.ch/"
+Documentation = "https://eawag-uchem-msf.github.io/pyenvipat/"
 Source = "https://github.com/eawag-uchem-msf/pyenvipat"
 Issues = "https://github.com/eawag-uchem-msf/pyenvipat/issues"
 Changelog = "https://github.com/eawag-uchem-msf/pyenvipat/blob/main/CHANGELOG.md"
