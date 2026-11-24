@@ -90,23 +90,8 @@ Releases are cut from `main` by a maintainer. A release is a git tag `vX.Y.Z`
 equal to `envipat.__version__`; the version itself was already raised by the
 PRs since the last release.
 
-One-time setup:
-
-- GitHub, *Settings > Rules > Rulesets*: a tag ruleset protecting the pattern
-  `v*` so only maintainers can create release tags.
-- GitHub, *Settings > Environments*: `pypi` (required reviewer: a maintainer;
-  deployment tags `v*` only) and `testpypi` (deployment branch `main` only).
-- [PyPI](https://pypi.org/manage/account/publishing/) and
-  [TestPyPI](https://test.pypi.org/manage/account/publishing/): a (pending)
-  trusted publisher for project `pyenvipat`, owner `eawag-uchem-msf`, repository
-  `pyenvipat`, workflow `release.yml`, environment `pypi` and `testpypi`
-  respectively.
-
-Dry run: before the first release (or after changing `release.yml`), run the
-`Release` workflow manually on `main` (*Actions > Release > Run workflow*, or
-`gh workflow run release.yml --ref main`). It builds the same sdist and wheels
-and uploads them to TestPyPI only. Check the result with
-`pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ pyenvipat`.
+One-time setup (GitHub, *Settings > Rules > Rulesets*): a tag ruleset protecting
+the pattern `v*` so only maintainers can create release tags.
 
 1. Make sure CI on `main` is green.
 2. Open a release PR that raises the version to `X.Y.Z` (as every PR does)
