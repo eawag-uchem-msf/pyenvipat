@@ -13,10 +13,10 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Exact tool pins installed by pip in .github/workflows/ scripts, e.g. cibuildwheel==4.3.5",
-      "managerFilePatterns": ["/^\\.github/workflows/.*\\.ya?ml$/"],
-      "matchStrings": ["pip install (?<depName>[A-Za-z0-9_.-]+)==(?<currentValue>[^\\s]+)"],
-      "datasourceTemplate": "pypi"
+      "description": "The Renovate version that validates renovate.json in CI and in nox -s renovate_check, e.g. npx --package renovate@44",
+      "managerFilePatterns": ["/^\\.github/workflows/renovate-config\\.ya?ml$/"],
+      "matchStrings": ["--package (?<depName>renovate)@(?<currentValue>[^\\s]+)"],
+      "datasourceTemplate": "npm"
     }
   ],
   "packageRules": [
@@ -31,6 +31,13 @@
       "enabled": false
     },
     {
+      "description": "Python versions for actions/setup-python change by hand, like the test matrix, noxfile.py and [tool.cibuildwheel]",
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["uses-with"],
+      "matchDepNames": ["python"],
+      "enabled": false
+    },
+    {
       "description": "Exactly pinned dev tools in the dev extra",
       "matchManagers": ["pep621"],
       "matchDepTypes": ["project.optional-dependencies"],
@@ -38,12 +45,12 @@
       "enabled": true
     },
     {
-      "description": "Everything else: one MR for all minor and patch updates",
+      "description": "Everything else: one PR for all minor and patch updates",
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "minor and patch updates"
     },
     {
-      "description": "A new Python for the CI default image is its own MR",
+      "description": "A new Python for the sanitize job's container image is its own PR",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["python"],
       "groupName": "python image"

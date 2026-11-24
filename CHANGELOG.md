@@ -7,6 +7,13 @@ All notable changes to pyEnvipat are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Renovate tracks the Renovate version that validates `renovate.json` in CI
+  (`renovate-config.yml`), which the move to GitHub Actions had left
+  unmanaged; the custom manager for `pip install x==y` pins in workflows,
+  which no longer matched anything, is removed.
+
 ## [1.0.5] - 2026-11-24
 
 ### Added
