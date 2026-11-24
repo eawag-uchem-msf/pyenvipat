@@ -106,9 +106,11 @@ jobs:
           attestations: true
 
   # Dry run: TestPyPI rejects re-uploading a version, so files already there are
-  # skipped and the run can be repeated for the same version.
+  # skipped and the run can be repeated for the same version. The status check is
+  # needed because a plain `if` implies success(), which is false when an upstream
+  # job (release-check) was skipped.
   publish-testpypi:
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ !failure() && !cancelled() && github.event_name == 'workflow_dispatch' }}
     needs: [build, wheels]
     runs-on: ubuntu-latest
     environment: testpypi
