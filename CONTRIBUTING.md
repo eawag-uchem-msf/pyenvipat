@@ -126,10 +126,11 @@ is installed into. Which dependencies are pinned, and how:
 | ruff, mypy | `dev` extra **and** `.pre-commit-config.yaml` | exact pin, same version in both files | Renovate, one PR per tool |
 | Other test/dev/docs extras | `[project.optional-dependencies]` | lower bound or unpinned | hand |
 | pre-commit hooks | `.pre-commit-config.yaml` (`rev:`) | exact tag | Renovate |
-| CI images | `.github/workflows/` (`image:`) | major or minor tag (`python:3.12`, `alpine:3.22`, `docker:29`) | Renovate |
-| CI tools | `.github/workflows/` (`pip install x==y`) | exact pin | Renovate |
+| GitHub Actions | `.github/workflows/` (`uses:`) | major or exact tag (`actions/checkout@v4`, `pypa/cibuildwheel@v4.3.5`) | Renovate |
+| CI container images | `.github/workflows/` (`container:`) | minor tag (`python:3.12`) | Renovate |
+| Renovate config validator | `.github/workflows/renovate-config.yml` (`renovate@44`) | major version, the one the Renovate App runs | Renovate |
 
-The test matrix (`python:$PYTHON_VERSION`) and the Python versions in
+The Python versions in the workflows (`setup-python`, the test matrix),
 `noxfile.py` and `[tool.cibuildwheel]` change only by hand.
 
 [Renovate](https://docs.renovatebot.com/) reads `renovate.json`. Once a week it
@@ -140,7 +141,9 @@ rejected updates. Check a change to `renovate.json` with `nox -s renovate_check`
 (needs Node.js); CI runs the same validator in the `renovate-config` job.
 
 Renovate runs via the [Renovate GitHub App](https://github.com/apps/renovate),
-installed once on the repository (no CI job or token to manage).
+installed once on the repository by an organization owner (no CI job or token to
+manage). If no Dependency Dashboard issue exists, the App is not installed or
+its installation is still awaiting approval.
 
 ## Licensing
 
